@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Login | Python Programming Course</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="lab-layout.css">
+<style>
+  .login-page { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 24px 20px; }
+  .login-card { margin: auto; width: 100%; max-width: 400px; background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 28px; box-shadow: 0 12px 32px rgba(7, 57, 60, .12); }
+  .login-card h2 { font-size: 1.5rem; }
+  .login-card > p { color: var(--muted); margin: 6px 0 20px; font-size: .94rem; }
+  label { display: block; font-weight: 600; font-size: .88rem; margin-bottom: 4px; }
+  input { width: 100%; padding: 11px 12px; font: inherit; color: var(--ink); border: 1px solid #a9bcba; border-radius: 6px; background: #fff; margin-bottom: 14px; }
+  form .btn { width: 100%; margin-top: 4px; }
+  .btn[disabled] { cursor: wait; }
+  #status { color: var(--error); font-weight: 600; font-size: .9rem; margin: 12px 0 0; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <h1>Student Login</h1>
+    <a href="index.html">Back to the course page</a>
+  </div>
+</header>
+
+<main class="login-page">
+  <div class="login-card">
+    <h2>Welcome back</h2>
+    <p>Log in with the username and password from your course admin.</p>
+    <form id="login-form" novalidate>
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="30" required>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" maxlength="100" required>
+      <button class="btn" id="submit" type="submit">Log in</button>
+      <p id="status" role="alert" hidden></p>
+    </form>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="student-api.js"></script>
+<script>
+const form = document.getElementById("login-form");
+const statusLine = document.getElementById("status");
+const submit = document.getElementById("submit");
+
+function showError(message) {
+  statusLine.textContent = message;
+  statusLine.hidden = false;
+}
+
+if (getStudentToken()) location.replace("student-exercises.html");
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  statusLine.hidden = true;
+  const username = form.elements.username.value.trim();
+  const password = form.elements.password.value;
+  if (!username || !password) return showError("Please enter your username and password.");
+  if (!BACKEND_URL) return showError("Student login isn't open yet. Please contact your course admin.");
+
+  submit.disabled = true;
+  submit.textContent = "Logging in...";
+  try {
+    const result = await callBackend({ action: "login", username, password });
+    if (result.ok) {
+      saveStudentToken(result.token);
+      if (getStudentToken()) return location.assign("student-exercises.html");
+      showError("Your browser is blocking this site's storage. Please allow it, then log in again.");
+    } else if (result.error === "locked") {
+      showError("Too many failed attempts. Please wait 15 minutes, then try again.");
+    } else if (result.error === "invalid") {
+      showError("Incorrect username or password.");
+      form.elements.password.value = "";
+      form.elements.password.focus();
+    } else {
+      showError("We couldn't log you in. Please try again.");
+    }
+  } catch (error) {
+    showError("We couldn't reach the server. Please check your connection and try again.");
+  }
+  submit.disabled = false;
+  submit.textContent = "Log in";
+});
+</script>
+</body>
+</html>

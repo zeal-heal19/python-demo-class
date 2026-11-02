@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Exercises | Python Programming Course</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="lab-layout.css">
+<link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="code-editor.css">
+<style>
+  .link-button { background: none; border: 0; padding: 0; font: inherit; font-size: .86rem; color: var(--on-hero); text-decoration: underline; cursor: pointer; }
+  .topbar-actions { display: flex; align-items: center; gap: 16px; color: var(--on-hero); font-size: .86rem; }
+
+  #dashboard { flex: 1; min-height: 0; overflow: auto; padding: 28px 20px 48px; }
+  .dashboard-inner { max-width: 960px; margin: 0 auto; }
+  #dashboard h2 { font-size: 1.5rem; }
+  #dashboard-summary { color: var(--muted); margin: 6px 0 20px; }
+  #topic-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; list-style: none; margin: 0; padding: 0; }
+  .topic-card { width: 100%; height: 100%; display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 10px; align-items: center; text-align: left; padding: 16px;
+    background: #fff; border: 1px solid var(--line); border-radius: 8px; font: inherit; color: var(--ink); cursor: pointer; }
+  .topic-card:hover:not([disabled]) { border-color: var(--primary); }
+  .topic-card[disabled] { background: #f6f8f8; color: var(--muted); cursor: not-allowed; }
+  .topic-number { font-family: var(--mono); font-size: .85rem; font-weight: 700; color: var(--primary); }
+  .topic-card[disabled] .topic-number { color: var(--muted); }
+  .topic-name { font-weight: 600; }
+  .badge { font-size: .76rem; font-weight: 600; border-radius: 99px; padding: 3px 10px; white-space: nowrap; }
+  .badge.locked { background: #e7ecec; color: var(--muted); }
+  .badge.open { background: #fef3d7; color: #6b4300; }
+  .badge.submitted { background: var(--primary-tint); color: #0b5c56; }
+  #dashboard-status { color: var(--error); font-weight: 600; margin: 12px 0; }
+
+  #last-submitted { margin: 12px 0 0; padding: 10px 12px; background: var(--primary-tint); border-radius: 6px; font-size: .88rem; }
+  .pager .btn { white-space: nowrap; }
+  .pager .btn[disabled] { cursor: not-allowed; }
+
+  @media (max-width: 640px) {
+    #topic-list { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <h1>My Exercises</h1>
+    <div class="topbar-actions">
+      <span id="student-name"></span>
+      <button class="link-button" id="logout" type="button">Log out</button>
+    </div>
+  </div>
+</header>
+
+<div id="dashboard">
+  <div class="dashboard-inner">
+    <h2 id="dashboard-title" tabindex="-1">Your exercises</h2>
+    <p id="dashboard-summary" aria-live="polite">Loading your exercises...</p>
+    <p id="dashboard-status" role="alert" hidden></p>
+    <ol id="topic-list"></ol>
+  </div>
+</div>
+
+<div id="quiz" hidden>
+  <main class="workspace" id="workspace">
+    <div class="panel" id="question-panel">
+      <p class="topic" id="topic"></p>
+      <h2 id="title" tabindex="-1"></h2>
+      <p id="task"></p>
+      <p class="label">Expected output</p>
+      <pre class="expected" id="expected"></pre>
+      <details id="hint-box"><summary>Show a hint</summary><p id="hint"></p></details>
+      <p id="last-submitted" hidden></p>
+    </div>
+    <div class="divider" id="divider" role="separator" tabindex="0" aria-label="Resize the exercise and code panels" aria-valuemin="25" aria-valuemax="75" aria-valuenow="50" title="Drag to resize. Double-click to reset."></div>
+    <div class="lab">
+      <textarea id="code" wrap="off" aria-label="Python code editor" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <div class="lab-bar">
+        <button class="btn" id="run" type="button">▶ Run and check</button>
+        <span id="lab-note">The first run takes a moment.</span>
+        <span id="verdict" role="status"></span>
+      </div>
+      <div class="terminal-title">Terminal</div>
+      <pre id="output" aria-live="polite" tabindex="0">Your output will appear here.</pre>
+    </div>
+  </main>
+
+  <div class="wrap pager">
+    <button class="btn secondary" id="back" type="button">All exercises</button>
+    <button class="btn" id="submit" type="button">Submit exercise</button>
+  </div>
+</div>
+
+<script src="vendor/codemirror/codemirror.min.js"></script>
+<script src="vendor/codemirror/python.min.js"></script>
+<script src="config.js"></script>
+<script src="code-editor.js"></script>
+<script src="python-runner.js"></script>
+<script src="split-pane.js"></script>
+<script src="student-api.js"></script>
+<script>
+const element = (id) => document.getElementById(id);
+const token = getStudentToken();
+if (!token) location.replace("student-login.html");
+
+const editor = createCodeEditor(element("code"));
+const runner = createPythonRunner();
+const drafts = {};
+let exercises = [];
+let current = null;
+
+function logOut() {
+  clearStudentToken();
+  location.replace("student-login.html");
+}
+
+function renderDashboard() {
+  const unlocked = exercises.filter((exercise) => !exercise.locked);
+  const submitted = unlocked.filter((exercise) => exercise.submission);
+  element("dashboard-summary").textContent = unlocked.length
+    ? `${unlocked.length} of ${exercises.length} unlocked, ${submitted.length} submitted. New exercises unlock after each class.`
+    : "Your exercises will unlock here after each class. Reload this page to check for new ones.";
+  element("topic-list").replaceChildren(...exercises.map((exercise, index) => {
+    const item = document.createElement("li");
+    const card = Object.assign(document.createElement("button"), { type: "button", className: "topic-card", disabled: exercise.locked });
+    const number = Object.assign(document.createElement("span"), { className: "topic-number", textContent: String(index + 1).padStart(2, "0") });
+    const name = Object.assign(document.createElement("span"), { className: "topic-name", textContent: exercise.topic });
+    const state = exercise.locked ? "locked" : exercise.submission ? "submitted" : "open";
+    const badge = Object.assign(document.createElement("span"), {
+      className: `badge ${state}`,
+      textContent: { locked: "Locked", submitted: "✓ Submitted", open: "Ready to solve" }[state],
+    });
+    card.append(number, name, badge);
+    card.addEventListener("click", () => openExercise(exercise));
+    item.append(card);
+    return item;
+  }));
+}
+
+function showDashboard() {
+  if (current) drafts[current.id] = editor.getValue();
+  current = null;
+  element("quiz").hidden = true;
+  element("dashboard").hidden = false;
+  renderDashboard();
+  element("dashboard-title").focus({ preventScroll: true });
+}
+
+function renderLastSubmitted(exercise) {
+  const line = element("last-submitted");
+  line.hidden = !exercise.submission;
+  if (!exercise.submission) return;
+  const when = new Date(exercise.submission.submittedAt).toLocaleString();
+  const result = exercise.submission.passed ? "auto-check passed" : "auto-check not passed";
+  line.textContent = `Last submitted ${when} (${result}). You can submit again.`;
+}
+
+function openExercise(exercise) {
+  current = exercise;
+  element("dashboard").hidden = true;
+  element("quiz").hidden = false;
+  element("topic").textContent = exercise.topic;
+  element("title").textContent = exercise.title;
+  element("task").textContent = exercise.task;
+  element("expected").textContent = exercise.expected;
+  element("hint").textContent = exercise.hint;
+  element("hint-box").open = false;
+  renderLastSubmitted(exercise);
+  editor.setValue(drafts[exercise.id] ?? exercise.submission?.code ?? exercise.starter);
+  element("output").textContent = "Your output will appear here.";
+  element("output").classList.remove("failed");
+  element("verdict").textContent = "";
+  element("verdict").className = "";
+  element("question-panel").scrollTop = 0;
+  element("title").focus({ preventScroll: true });
+}
+
+function setBusy(busy) {
+  for (const id of ["run", "submit", "back"]) element(id).disabled = busy;
+}
+
+function setVerdict(kind, text) {
+  element("verdict").className = kind;
+  element("verdict").textContent = text;
+}
+
+async function checkCode() {
+  const output = element("output");
+  output.classList.remove("failed");
+  output.textContent = "Loading Python...";
+  element("lab-note").textContent = "Please wait...";
+  setVerdict("", "");
+  const result = await runAndCheck(runner, current, editor.getValue(), () => { element("lab-note").textContent = "Running..."; });
+  output.classList.toggle("failed", result.status !== "ok");
+  output.textContent = result.display;
+  element("lab-note").textContent = "";
+  return result;
+}
+
+element("run").addEventListener("click", async () => {
+  setBusy(true);
+  const result = await checkCode();
+  if (result.isRight) setVerdict("right", "✓ Correct! You can submit this now.");
+  else if (result.status === "ok") setVerdict("wrong", "Not quite. Compare your output with the expected output.");
+  else setVerdict("wrong", "Your code stopped with a problem. Read the message below.");
+  setBusy(false);
+});
+
+element("submit").addEventListener("click", async () => {
+  const code = editor.getValue();
+  if (!code.trim()) return setVerdict("wrong", "Write your code before submitting.");
+  setBusy(true);
+  const result = await checkCode();
+  element("lab-note").textContent = "Submitting...";
+  try {
+    const saved = await callBackend({ action: "submit", token, exerciseId: current.id, code, passed: String(result.isRight) });
+    if (saved.error === "session") return logOut();
+    if (saved.ok) {
+      current.submission = { submittedAt: saved.submittedAt, passed: result.isRight, code };
+      renderLastSubmitted(current);
+      setVerdict(result.isRight ? "right" : "wrong", result.isRight
+        ? "✓ Submitted, and your answer passed the auto-check."
+        : "Submitted, but your answer didn't pass the auto-check. You can fix it and submit again.");
+    } else if (saved.error === "locked") {
+      setVerdict("wrong", "This exercise is locked now, so it wasn't submitted. Please contact your course admin.");
+    } else {
+      setVerdict("wrong", "We couldn't submit your exercise. Please try again.");
+    }
+  } catch (error) {
+    setVerdict("wrong", "We couldn't reach the server, so your exercise wasn't submitted. Please try again.");
+  }
+  element("lab-note").textContent = "";
+  setBusy(false);
+});
+
+element("back").addEventListener("click", showDashboard);
+element("logout").addEventListener("click", logOut);
+initSplitPane(element("workspace"), element("divider"));
+
+async function loadExercises() {
+  if (!token) return;
+  try {
+    const result = await callBackend({ action: "exercises", token });
+    if (result.error === "session") return logOut();
+    if (!result.ok) throw new Error(result.error);
+    exercises = result.exercises;
+    element("student-name").textContent = result.name;
+    renderDashboard();
+  } catch (error) {
+    element("dashboard-summary").textContent = "";
+    element("dashboard-status").textContent = "We couldn't load your exercises. Please check your connection and reload this page.";
+    element("dashboard-status").hidden = false;
+  }
+}
+
+loadExercises();
+</script>
+</body>
+</html>

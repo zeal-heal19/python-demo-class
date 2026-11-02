@@ -35,6 +35,8 @@
     border-radius: 6px; padding: 12px 20px; cursor: pointer; text-decoration: none; text-align: center; }
   .btn:hover { background: var(--cta-hover); }
   .btn[disabled] { opacity: .6; cursor: wait; }
+  .btn.secondary { background: #fff; color: var(--ink); border: 1px solid #a9bcba; }
+  .btn.secondary:hover { background: var(--primary-tint); }
   :focus-visible { outline: 3px solid #5eb8ae; outline-offset: 2px; }
 
   /* Top bar */
@@ -128,7 +130,7 @@
     .topbar nav a:not(.demo-tab) { display: none; }
     .hero { padding: 28px 0; }
     .hero-text { max-width: none; }
-    .topbar .btn { display: none; }
+    .topbar .btn:not(.secondary) { display: none; }
     .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
     .col-main { padding: 24px 0 32px; }
     .included { margin-bottom: 32px; }
@@ -140,6 +142,8 @@
     body { padding-bottom: 64px; }
   }
   @media (max-width: 520px) {
+    .topbar .brand { display: none; }
+    .topbar .wrap { justify-content: space-between; }
     .included { grid-template-columns: 1fr; }
   }
   .lab-bar { background: var(--bar-bg); }
@@ -160,6 +164,7 @@
       <a href="#lab">Practice lab</a>
       <a class="demo-tab" href="demo-lab.html" target="_blank" rel="noopener">Demo Practice Lab</a>
     </nav>
+    <a class="btn secondary" href="student-login.html">Student login</a>
     <a class="btn" href="#register">Register free</a>
   </div>
 </header>
@@ -289,14 +294,12 @@ for number, skill in enumerate(skills, start=1):
   <a class="btn" href="#register">Register free</a>
 </div>
 
+<script src="config.js"></script>
 <script src="vendor/codemirror/codemirror.min.js"></script>
 <script src="vendor/codemirror/python.min.js"></script>
 <script src="code-editor.js"></script>
 <script src="python-runner.js"></script>
 <script>
-// Paste the Google Apps Script web app URL here. See setup/SETUP.md.
-const REGISTRATION_URL = "";
-
 // Put images in the screenshots folder and list them here. The section stays hidden while this is empty.
 const SCREENSHOTS = [
   // { file: "screenshots/session-1.jpg", caption: "Live class on Python loops" },
@@ -329,12 +332,12 @@ form.addEventListener("submit", async (event) => {
   const data = new FormData(form);
   const problem = validate(data);
   if (problem) return showError(...problem);
-  if (!REGISTRATION_URL) return showError("Registration isn't open yet. Please check back soon.");
+  if (!BACKEND_URL) return showError("Registration isn't open yet. Please check back soon.");
 
   submit.disabled = true;
   submit.textContent = "Registering...";
   try {
-    const response = await fetch(REGISTRATION_URL, { method: "POST", body: new URLSearchParams(data) });
+    const response = await fetch(BACKEND_URL, { method: "POST", body: new URLSearchParams(data) });
     const result = await response.json();
     if (!result.ok) throw new Error(result.error || "rejected");
     const area = document.getElementById("form-area");

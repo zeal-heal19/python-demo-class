@@ -76,3 +76,26 @@ function createPythonRunner() {
 
   return { run };
 }
+
+const CHECK_MARKER = "__CHECK_OUTPUT__";
+
+function tidyOutput(text) {
+  return text.split("\n").map((line) => line.trimEnd()).join("\n").trim();
+}
+
+// Runs a learner's code against a question. A question with a "test" runs that code
+// afterwards and checks what it prints. Otherwise, the check uses what the learner's code prints.
+async function runAndCheck(runner, question, code, onStarted) {
+  const program = question.test ? `${code}\n\nprint("${CHECK_MARKER}")\n${question.test}` : code;
+  const result = await runner.run(program, onStarted);
+  const [shown, tested = ""] = result.output.split(`${CHECK_MARKER}\n`);
+  if (result.status !== "ok") {
+    return { status: result.status, isRight: false, display: tidyOutput(result.output.replace(`${CHECK_MARKER}\n`, "")) };
+  }
+  const yours = tidyOutput(shown);
+  const display = question.test
+    ? `${yours ? `${yours}\n\n` : ""}Our test printed:\n${tidyOutput(tested)}`
+    : yours || "Your code ran, but it didn't print anything.";
+  const isRight = tidyOutput(question.test ? tested : shown) === question.expected;
+  return { status: "ok", isRight, display };
+}
