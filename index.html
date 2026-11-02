@@ -16,7 +16,7 @@
     --hero: #07393c; --hero-end: #0d5c5a; --on-hero: #cfe6e3; --hero-accent: #fbbf24;
     --primary: #0f766e; --primary-tint: #dff3f0;
     --cta: #f59e0b; --cta-hover: #e08e06; --on-cta: #231503;
-    --code-bg: #0b2a2c; --code-line: #1f4a4b; --code-ink: #d9f2ee; --code-note: #a6c8c4; --output-bg: #06191b;
+    --code-bg: #1e1e1e; --code-line: #3c3c3c; --code-ink: #d4d4d4; --code-note: #cccccc; --bar-bg: #252526; --output-bg: #181818;
     --error: #b3261e; --ok: #15803d;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --card-width: 370px;
@@ -114,9 +114,9 @@
     color: var(--code-ink); font: .92rem/1.5 var(--mono); tab-size: 4; }
   .lab-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--code-line); color: var(--code-note); font-size: .86rem; }
   .lab-bar .btn { padding: 8px 16px; font-size: .9rem; }
-  .lab pre { margin: 0; padding: 14px 16px; min-height: 72px; max-height: 280px; overflow: auto; background: var(--output-bg); color: #b8f2c9;
+  .lab > pre { margin: 0; padding: 14px 16px; min-height: 72px; max-height: 280px; overflow: auto; background: var(--output-bg); color: #ffffff;
     font: .9rem/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
-  .lab pre.failed { color: #ffb4ab; }
+  .lab > pre.failed { color: #f48771; }
   .lab-more { margin: 14px 0 0; font-size: .93rem; }
 
   footer { padding: 22px 0; font-size: .84rem; color: var(--muted); border-top: 1px solid var(--line); }
@@ -142,7 +142,12 @@
   @media (max-width: 520px) {
     .included { grid-template-columns: 1fr; }
   }
+  .lab-bar { background: var(--bar-bg); }
+  .terminal-title { flex: none; padding: 6px 16px; background: var(--output-bg); border-top: 1px solid var(--code-line);
+    color: #cccccc; font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 </style>
+<link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="code-editor.css">
 </head>
 <body>
 
@@ -268,6 +273,7 @@ for number, skill in enumerate(skills, start=1):
           <button class="btn" id="run" type="button">▶ Run</button>
           <span id="lab-note">The first run takes a few seconds to load Python.</span>
         </div>
+        <div class="terminal-title">Terminal</div>
         <pre id="output" aria-live="polite" tabindex="0">Your output will appear here.</pre>
       </div>
       <p class="lab-more">Want a bigger workspace? <a href="https://jupyterlite.github.io/demo/lab/index.html" target="_blank" rel="noopener">Open the full JupyterLite lab</a> (free and open source, opens in a new tab).</p>
@@ -283,6 +289,9 @@ for number, skill in enumerate(skills, start=1):
   <a class="btn" href="#register">Register free</a>
 </div>
 
+<script src="vendor/codemirror/codemirror.min.js"></script>
+<script src="vendor/codemirror/python.min.js"></script>
+<script src="code-editor.js"></script>
 <script src="python-runner.js"></script>
 <script>
 // Paste the Google Apps Script web app URL here. See setup/SETUP.md.
@@ -356,6 +365,7 @@ if (SCREENSHOTS.length) {
   document.getElementById("sessions").hidden = false;
 }
 
+const editor = createCodeEditor(document.getElementById("code"));
 const runner = createPythonRunner();
 const runButton = document.getElementById("run");
 const output = document.getElementById("output");
@@ -366,7 +376,7 @@ runButton.addEventListener("click", async () => {
   output.textContent = "Loading Python...";
   runButton.disabled = true;
   labNote.textContent = "Please wait...";
-  const result = await runner.run(document.getElementById("code").value, () => { labNote.textContent = "Running..."; });
+  const result = await runner.run(editor.getValue(), () => { labNote.textContent = "Running..."; });
   output.classList.toggle("failed", result.status !== "ok");
   output.textContent = result.output || "Your code ran, but it didn't print anything.";
   labNote.textContent = "";

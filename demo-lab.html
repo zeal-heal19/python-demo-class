@@ -14,7 +14,7 @@
     --hero: #07393c; --hero-end: #0d5c5a; --on-hero: #cfe6e3; --hero-accent: #fbbf24;
     --primary: #0f766e; --primary-tint: #dff3f0;
     --cta: #f59e0b; --cta-hover: #e08e06; --on-cta: #231503;
-    --code-bg: #0b2a2c; --code-line: #1f4a4b; --code-ink: #d9f2ee; --code-note: #a6c8c4; --output-bg: #06191b;
+    --code-bg: #1e1e1e; --code-line: #3c3c3c; --code-ink: #d4d4d4; --code-note: #cccccc; --bar-bg: #252526; --output-bg: #181818;
     --error: #b3261e; --ok: #15803d;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
@@ -74,9 +74,10 @@
     color: var(--code-ink); font: .95rem/1.5 var(--mono); tab-size: 4; }
   .lab-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--code-line); color: var(--code-note); font-size: .85rem; flex: none; }
   .lab-bar .btn { padding: 8px 16px; font-size: .92rem; }
-  .lab pre { margin: 0; padding: 12px 16px; flex: 0 0 35%; min-height: 0; overflow: auto; background: var(--output-bg); color: #b8f2c9;
+  .lab > pre { margin: 0; padding: 12px 16px; flex: 0 0 35%; min-height: 0; overflow: auto; background: var(--output-bg); color: #ffffff;
     font: .9rem/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
-  .lab pre.failed { color: #ffb4ab; }
+  .lab .CodeMirror { flex: 1 1 0; height: 0; min-height: 0; }
+  .lab > pre.failed { color: #f48771; }
   #verdict { font-weight: 600; font-size: .88rem; }
   #verdict.right { color: #86efac; }
   #verdict.wrong { color: #ffb4ab; }
@@ -102,14 +103,21 @@
     .divider { cursor: row-resize; }
     .divider::after { width: 44px; height: 4px; }
     .panel { padding: 14px 20px; }
-    .lab textarea { padding: 10px 16px; }
+    .lab > pre { flex-basis: 26%; padding: 8px 16px; }
+    .lab-bar { padding: 6px 16px; }
+    .terminal-title { padding: 3px 16px; }
   }
   /* On very short screens, such as a phone held sideways, let the page scroll instead. */
   @media (max-height: 480px) {
     body { height: auto; overflow: auto; }
     .workspace { flex: none; height: 640px; }
   }
+  .lab-bar { background: var(--bar-bg); }
+  .terminal-title { flex: none; padding: 6px 16px; background: var(--output-bg); border-top: 1px solid var(--code-line);
+    color: #cccccc; font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 </style>
+<link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="code-editor.css">
 </head>
 <body>
 
@@ -143,9 +151,10 @@
         <textarea id="code" wrap="off" aria-label="Python code editor" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
         <div class="lab-bar">
           <button class="btn" id="run" type="button">▶ Run and check</button>
-          <span id="lab-note">The first run takes a few seconds to load Python.</span>
+          <span id="lab-note">The first run takes a moment.</span>
           <span id="verdict" role="status"></span>
         </div>
+        <div class="terminal-title">Terminal</div>
         <pre id="output" aria-live="polite" tabindex="0">Your output will appear here.</pre>
       </div>
   </main>
@@ -168,6 +177,9 @@
   </div>
 </div>
 
+<script src="vendor/codemirror/codemirror.min.js"></script>
+<script src="vendor/codemirror/python.min.js"></script>
+<script src="code-editor.js"></script>
 <script src="python-runner.js"></script>
 <script>
 // A question with a "test" runs that code after the learner's code and checks what it prints.
@@ -222,6 +234,7 @@ const QUESTIONS = [
 const CHECK_MARKER = "__CHECK_OUTPUT__";
 
 const element = (id) => document.getElementById(id);
+const editor = createCodeEditor(element("code"));
 const runner = createPythonRunner();
 const answers = QUESTIONS.map((question) => question.starter);
 const solved = QUESTIONS.map(() => false);
@@ -246,7 +259,7 @@ function renderSteps() {
 }
 
 function showQuestion(index, moveFocus = true) {
-  answers[current] = element("code").value;
+  answers[current] = editor.getValue();
   current = index;
   const question = QUESTIONS[index];
   element("quiz").hidden = false;
@@ -260,7 +273,7 @@ function showQuestion(index, moveFocus = true) {
   element("solution").textContent = question.solution;
   element("hint-box").open = false;
   element("solution-box").open = false;
-  element("code").value = answers[index];
+  editor.setValue(answers[index]);
   element("output").textContent = "Your output will appear here.";
   element("output").classList.remove("failed");
   element("verdict").textContent = "";
@@ -276,7 +289,7 @@ function showQuestion(index, moveFocus = true) {
 }
 
 function showResults() {
-  answers[current] = element("code").value;
+  answers[current] = editor.getValue();
   const count = solved.filter(Boolean).length;
   element("quiz").hidden = true;
   element("results").hidden = false;
@@ -304,7 +317,7 @@ function setBusy(busy) {
 
 element("run").addEventListener("click", async () => {
   const question = QUESTIONS[current];
-  const code = element("code").value;
+  const code = editor.getValue();
   const output = element("output");
   const verdict = element("verdict");
   output.classList.remove("failed");
@@ -337,16 +350,6 @@ element("next").addEventListener("click", () => {
 });
 element("previous").addEventListener("click", () => showQuestion(current - 1));
 element("review").addEventListener("click", () => showQuestion(0));
-
-// Tab indents in the editor. Press Escape first to move on with the keyboard.
-let tabLeavesEditor = false;
-element("code").addEventListener("keydown", (event) => {
-  if (event.key === "Escape") tabLeavesEditor = true;
-  if (event.key !== "Tab" || event.shiftKey || tabLeavesEditor) return;
-  event.preventDefault();
-  event.target.setRangeText("    ", event.target.selectionStart, event.target.selectionEnd, "end");
-});
-element("code").addEventListener("blur", () => { tabLeavesEditor = false; });
 
 const MIN_SPLIT = 25;
 const MAX_SPLIT = 75;
@@ -400,7 +403,7 @@ divider.addEventListener("keydown", (event) => {
 stacked.addEventListener("change", setDividerOrientation);
 setDividerOrientation();
 
-element("code").value = answers[0];
+editor.setValue(answers[0]);
 showQuestion(0, false);
 </script>
 </body>

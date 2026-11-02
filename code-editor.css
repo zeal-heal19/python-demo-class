@@ -1,0 +1,18 @@
+/* VS Code "Dark+" colours for the code editor */
+.lab .CodeMirror { height: 220px; background: #1e1e1e; color: #d4d4d4; font: .95rem/1.5 var(--mono); }
+.cm-s-dark-plus .CodeMirror-gutters { background: #1e1e1e; border-right: 0; }
+.cm-s-dark-plus .CodeMirror-linenumber { color: #858585; }
+.cm-s-dark-plus .CodeMirror-cursor { border-left: 2px solid #aeafad; }
+.cm-s-dark-plus .CodeMirror-selected { background: #264f78; }
+.cm-s-dark-plus.CodeMirror-focused .CodeMirror-selected { background: #264f78; }
+.cm-s-dark-plus .CodeMirror-activeline-background { background: #2a2d2e; }
+.cm-s-dark-plus .cm-comment { color: #6a9955; }
+.cm-s-dark-plus .cm-keyword { color: #569cd6; }
+.cm-s-dark-plus .cm-keyword.cm-control { color: #c586c0; }
+.cm-s-dark-plus .cm-builtin, .cm-s-dark-plus .cm-def { color: #dcdcaa; }
+.cm-s-dark-plus .cm-string, .cm-s-dark-plus .cm-string-2 { color: #ce9178; }
+.cm-s-dark-plus .cm-number { color: #b5cea8; }
+.cm-s-dark-plus .cm-variable, .cm-s-dark-plus .cm-variable-2, .cm-s-dark-plus .cm-property { color: #9cdcfe; }
+.cm-s-dark-plus .cm-operator, .cm-s-dark-plus .cm-punctuation { color: #d4d4d4; }
+.cm-s-dark-plus .cm-meta { color: #dcdcaa; }
+.cm-s-dark-plus .cm-error { color: #f48771; background: none; }
