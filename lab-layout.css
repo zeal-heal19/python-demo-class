@@ -37,6 +37,7 @@ h1 { font-size: 1.1rem; font-weight: 700; }
   font: 600 .85rem Inter, system-ui, sans-serif; cursor: pointer; }
 .steps button[aria-current="step"] { border: 2px solid var(--primary); color: var(--primary); }
 .steps button.solved { background: var(--primary); border-color: var(--primary); color: #fff; }
+.steps button.solved[aria-current="step"] { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--primary); }
 .steps button[disabled] { cursor: not-allowed; }
 
 /* --split is the question panel's share of the screen. The divider updates it. */

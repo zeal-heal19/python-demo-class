@@ -15,7 +15,9 @@ const WORKER_SOURCE = `
       postMessage({ started: true });
       // A fresh namespace stops variables from an earlier run leaking into this one.
       const namespace = py.toPy({ __name__: "__main__" });
-      await py.runPythonAsync(data, { globals: namespace });
+      // Setup runs separately so that line numbers in errors still match the learner's code.
+      if (data.setup) await py.runPythonAsync(data.setup, { globals: namespace });
+      await py.runPythonAsync(data.code, { globals: namespace });
       postMessage({ done: true });
     } catch (error) {
       postMessage({ done: true, error: String(error.message || error) });
@@ -41,7 +43,7 @@ function createPythonRunner() {
   }
 
   // Resolves to { status, output }, where status is "ok", "error", "timeout" or "load-failed".
-  function run(code, onStarted) {
+  function run(code, onStarted, setup) {
     return new Promise((resolve) => {
       if (!worker) {
         worker = new Worker(URL.createObjectURL(new Blob([WORKER_SOURCE], { type: "text/javascript" })));
@@ -70,7 +72,7 @@ function createPythonRunner() {
           else finish("ok");
         }
       };
-      worker.postMessage(code);
+      worker.postMessage({ code, setup });
     });
   }
 
@@ -87,7 +89,7 @@ function tidyOutput(text) {
 // afterwards and checks what it prints. Otherwise, the check uses what the learner's code prints.
 async function runAndCheck(runner, question, code, onStarted) {
   const program = question.test ? `${code}\n\nprint("${CHECK_MARKER}")\n${question.test}` : code;
-  const result = await runner.run(program, onStarted);
+  const result = await runner.run(program, onStarted, question.setup);
   const [shown, tested = ""] = result.output.split(`${CHECK_MARKER}\n`);
   if (result.status !== "ok") {
     return { status: result.status, isRight: false, display: tidyOutput(result.output.replace(`${CHECK_MARKER}\n`, "")) };
@@ -98,4 +100,43 @@ async function runAndCheck(runner, question, code, onStarted) {
     : yours || "Your code ran, but it didn't print anything.";
   const isRight = tidyOutput(question.test ? tested : shown) === question.expected;
   return { status: "ok", isRight, display };
+}
+
+function describeTestCase({ setup, test }) {
+  return [setup, test].filter(Boolean).join("\n");
+}
+
+// Runs a learner's code against every test case of a question, each in a fresh Python session.
+// The report lists every result and explains only the first problem, to keep it readable.
+async function runTests(runner, question, code, onStarted) {
+  const total = question.tests.length;
+  const results = [];
+  for (const testCase of question.tests) {
+    const result = await runAndCheck(runner, testCase, code, onStarted);
+    results.push(result);
+    // After a timeout or a failed load, the remaining test cases would only fail the same way.
+    if (result.status === "timeout" || result.status === "load-failed") break;
+  }
+
+  const lines = question.tests.map((_, index) => {
+    const result = results[index];
+    const state = !result ? "Not run" : result.isRight ? "Passed" : result.status === "ok" ? "Failed" : "Stopped with a problem";
+    return `Test ${index + 1} of ${total}: ${state}`;
+  });
+  const firstProblem = results.findIndex((result) => !result.isRight);
+  const passed = results.filter((result) => result.isRight).length;
+  if (firstProblem === -1) {
+    return { status: "ok", isRight: true, passed, total, display: lines.join("\n") };
+  }
+
+  const problem = results[firstProblem];
+  const testCase = question.tests[firstProblem];
+  const given = describeTestCase(testCase);
+  const details = [
+    `Test ${firstProblem + 1} details:`,
+    ...(given ? [`Given:\n${given}`] : []),
+    `Expected output:\n${testCase.expected}`,
+    `Your result:\n${problem.display}`,
+  ];
+  return { status: problem.status, isRight: false, passed, total, display: `${lines.join("\n")}\n\n${details.join("\n\n")}` };
 }
