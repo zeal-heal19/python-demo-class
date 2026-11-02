@@ -44,6 +44,7 @@
   .topbar nav { display: flex; gap: 22px; }
   .topbar nav a { color: var(--muted); font-size: .93rem; font-weight: 500; text-decoration: none; }
   .topbar nav a:hover { color: var(--ink); }
+  .topbar nav a.demo-tab { color: var(--primary); font-weight: 600; }
   .topbar .btn { padding: 8px 14px; font-size: .9rem; white-space: nowrap; }
 
   /* Hero */
@@ -124,7 +125,7 @@
   .mobile-bar { display: none; }
 
   @media (max-width: 900px) {
-    .topbar nav { display: none; }
+    .topbar nav a:not(.demo-tab) { display: none; }
     .hero { padding: 28px 0; }
     .hero-text { max-width: none; }
     .topbar .btn { display: none; }
@@ -152,6 +153,7 @@
       <a href="#syllabus">Syllabus</a>
       <a href="#included">What's included</a>
       <a href="#lab">Practice lab</a>
+      <a class="demo-tab" href="demo-lab.html" target="_blank" rel="noopener">Demo Practice Lab</a>
     </nav>
     <a class="btn" href="#register">Register free</a>
   </div>
@@ -269,6 +271,7 @@ for number, skill in enumerate(skills, start=1):
         <pre id="output" aria-live="polite" tabindex="0">Your output will appear here.</pre>
       </div>
       <p class="lab-more">Want a bigger workspace? <a href="https://jupyterlite.github.io/demo/lab/index.html" target="_blank" rel="noopener">Open the full JupyterLite lab</a> (free and open source, opens in a new tab).</p>
+      <p class="lab-more"><a class="btn" href="demo-lab.html" target="_blank" rel="noopener">Try 5 practice questions</a></p>
     </div>
   </section>
 </main>
@@ -280,6 +283,7 @@ for number, skill in enumerate(skills, start=1):
   <a class="btn" href="#register">Register free</a>
 </div>
 
+<script src="python-runner.js"></script>
 <script>
 // Paste the Google Apps Script web app URL here. See setup/SETUP.md.
 const REGISTRATION_URL = "";
@@ -352,86 +356,21 @@ if (SCREENSHOTS.length) {
   document.getElementById("sessions").hidden = false;
 }
 
-// Python runs in a worker so that an endless loop can be stopped without freezing the page.
-const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
-const RUN_LIMIT_MS = 15000;
-const WORKER_SOURCE = `
-  importScripts("${PYODIDE_URL}pyodide.js");
-  const ready = loadPyodide({ indexURL: "${PYODIDE_URL}" }).then((py) => {
-    py.setStdout({ batched: (text) => postMessage({ out: text }) });
-    py.setStderr({ batched: (text) => postMessage({ out: text }) });
-    py.setStdin({ error: true });
-    return py;
-  });
-  onmessage = async ({ data }) => {
-    try {
-      const py = await ready;
-      postMessage({ started: true });
-      await py.runPythonAsync(data);
-      postMessage({ done: true });
-    } catch (error) {
-      postMessage({ done: true, error: String(error.message || error) });
-    }
-  };
-`;
-
+const runner = createPythonRunner();
 const runButton = document.getElementById("run");
 const output = document.getElementById("output");
 const labNote = document.getElementById("lab-note");
-let worker = null;
-let timer = null;
 
-function finishRun(note) {
-  clearTimeout(timer);
-  runButton.disabled = false;
-  labNote.textContent = note;
-}
-
-function stopWorker() {
-  if (worker) worker.terminate();
-  worker = null;
-}
-
-function startWorker() {
-  worker = new Worker(URL.createObjectURL(new Blob([WORKER_SOURCE], { type: "text/javascript" })));
-  worker.onerror = () => {
-    stopWorker();
-    output.classList.add("failed");
-    output.textContent = "Python couldn't load. Please check your connection and try again.";
-    finishRun("");
-  };
-  worker.onmessage = ({ data }) => {
-    if (data.started) {
-      labNote.textContent = "Running...";
-      output.textContent = "";
-      timer = setTimeout(() => {
-        stopWorker();
-        output.classList.add("failed");
-        output.textContent += "\nStopped after 15 seconds. Check your code for an endless loop.";
-        finishRun("");
-      }, RUN_LIMIT_MS);
-    }
-    if (data.out !== undefined) output.textContent += data.out + "\n";
-    if (data.done) {
-      if (data.error) {
-        output.classList.add("failed");
-        const inputHint = data.error.includes("I/O error") ? "\ninput() isn't available in this lab, so set the value in your code instead." : "";
-        output.textContent += data.error + inputHint;
-      } else if (!output.textContent) {
-        output.textContent = "Your code ran, but it didn't print anything.";
-      }
-      finishRun("");
-    }
-  };
-}
-
-runButton.addEventListener("click", () => {
+runButton.addEventListener("click", async () => {
   output.classList.remove("failed");
   output.textContent = "Loading Python...";
   runButton.disabled = true;
   labNote.textContent = "Please wait...";
-  if (!worker) startWorker();
-  worker.postMessage(document.getElementById("code").value);
+  const result = await runner.run(document.getElementById("code").value, () => { labNote.textContent = "Running..."; });
+  output.classList.toggle("failed", result.status !== "ok");
+  output.textContent = result.output || "Your code ran, but it didn't print anything.";
+  labNote.textContent = "";
+  runButton.disabled = false;
 });
 </script>
 </body>
