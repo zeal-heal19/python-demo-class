@@ -39,6 +39,23 @@
   .pager-actions { display: flex; gap: 12px; }
   #test-count { color: var(--muted); font-size: .88rem; margin: 0 0 14px; }
 
+  /* Long exercises scroll sideways so the question numbers stay on one line. */
+  #steps { overflow-x: auto; max-width: 100%; padding: 5px; scrollbar-width: thin; }
+  #steps li { flex: none; }
+
+  .choice-only { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .choice-only .divider, .choice-only .lab { display: none; }
+  .choice-only .panel > * { max-width: 720px; }
+  #choice-box { border: 0; padding: 0; margin: 0 0 12px; }
+  #choice-box legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  #choice-box label { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 8px;
+    border: 1px solid #a9bcba; border-radius: 6px; cursor: pointer; }
+  #choice-box label:has(input:checked) { border-color: var(--primary); background: var(--primary-tint); }
+  #choice-result { font-weight: 600; margin: 0 0 12px; }
+  #choice-result:empty { display: none; }
+  #choice-result.right { color: var(--ok); }
+  #choice-result.wrong { color: var(--error); }
+
   @media (max-width: 640px) {
     #topic-list { grid-template-columns: minmax(0, 1fr); }
     .pager .btn { padding: 8px 14px; }
@@ -79,13 +96,20 @@
       <p class="topic" id="topic"></p>
       <h2 id="title" tabindex="-1"></h2>
       <p id="task"></p>
-      <p id="test-count"></p>
-      <div id="example-given-box">
-        <p class="label">Example: given</p>
-        <pre class="expected" id="example-given"></pre>
+      <div id="code-details">
+        <p id="test-count"></p>
+        <div id="example-given-box">
+          <p class="label">Example: given</p>
+          <pre class="expected" id="example-given"></pre>
+        </div>
+        <p class="label">Expected output</p>
+        <pre class="expected" id="expected"></pre>
       </div>
-      <p class="label">Expected output</p>
-      <pre class="expected" id="expected"></pre>
+      <fieldset id="choice-box" hidden>
+        <legend>Choose the answer that fills the blank</legend>
+        <div id="choices"></div>
+      </fieldset>
+      <p id="choice-result" role="status"></p>
       <details id="hint-box"><summary>Show a hint</summary><p id="hint"></p></details>
       <p id="last-submitted" hidden></p>
     </div>
@@ -165,8 +189,12 @@ function renderDashboard() {
   }));
 }
 
+function selectedChoice() {
+  return document.querySelector('#choices input:checked')?.value ?? null;
+}
+
 function saveDraft() {
-  if (current) drafts[current.id] = editor.getValue();
+  if (current) drafts[current.id] = current.options ? selectedChoice() : editor.getValue();
 }
 
 function showDashboard() {
@@ -184,7 +212,9 @@ function renderLastSubmitted(question) {
   line.hidden = !question.submission;
   if (!question.submission) return;
   const when = new Date(question.submission.submittedAt).toLocaleString();
-  const result = question.submission.passed ? "auto-check passed" : "auto-check not passed";
+  const passedText = question.options ? "correct" : "auto-check passed";
+  const failedText = question.options ? "not correct" : "auto-check not passed";
+  const result = question.submission.passed ? passedText : failedText;
   line.textContent = `Last submitted ${when} (${result}). You can submit again.`;
 }
 
@@ -205,6 +235,31 @@ function renderSteps() {
     item.append(step);
     return item;
   }));
+  element("steps").children[index].scrollIntoView({ block: "nearest", inline: "center" });
+}
+
+function renderChoices(question) {
+  const chosen = drafts[question.id] ?? question.submission?.code;
+  element("choices").replaceChildren(...question.options.map((option) => {
+    const label = document.createElement("label");
+    const input = Object.assign(document.createElement("input"), { type: "radio", name: "choice", value: option, checked: option === chosen });
+    label.append(input, document.createTextNode(option));
+    return label;
+  }));
+}
+
+function renderCodeQuestion(question) {
+  const example = question.tests[0];
+  const given = describeTestCase(example);
+  element("test-count").textContent = question.tests.length === 1
+    ? "Your code must print this exact output."
+    : `Your code must pass ${question.tests.length} test cases. Here's the first one.`;
+  element("example-given-box").hidden = !given;
+  element("example-given").textContent = given;
+  element("expected").textContent = example.expected;
+  editor.setValue(drafts[question.id] ?? question.submission?.code ?? question.starter);
+  element("output").textContent = "Your output will appear here.";
+  element("output").classList.remove("failed");
 }
 
 function openQuestion(exercise, index) {
@@ -212,38 +267,38 @@ function openQuestion(exercise, index) {
   currentExercise = exercise;
   const question = exercise.questions[index];
   current = question;
-  const example = question.tests[0];
-  const given = describeTestCase(example);
+  const isChoice = Boolean(question.options);
   element("dashboard").hidden = true;
   element("quiz").hidden = false;
   renderSteps();
   element("topic").textContent = exercise.topic;
   element("title").textContent = question.title;
   element("task").textContent = question.task;
-  element("test-count").textContent = `Your code must pass ${question.tests.length} test cases. Here's the first one.`;
-  element("example-given-box").hidden = !given;
-  element("example-given").textContent = given;
-  element("expected").textContent = example.expected;
+  element("workspace").classList.toggle("choice-only", isChoice);
+  element("code-details").hidden = isChoice;
+  element("choice-box").hidden = !isChoice;
+  if (isChoice) renderChoices(question);
+  else renderCodeQuestion(question);
   element("hint").textContent = question.hint;
   element("hint-box").open = false;
   renderLastSubmitted(question);
-  editor.setValue(drafts[question.id] ?? question.submission?.code ?? question.starter);
-  element("output").textContent = "Your output will appear here.";
-  element("output").classList.remove("failed");
-  element("verdict").textContent = "";
-  element("verdict").className = "";
+  for (const id of ["verdict", "choice-result"]) {
+    element(id).textContent = "";
+    element(id).className = "";
+  }
   element("question-panel").scrollTop = 0;
   element("title").focus({ preventScroll: true });
 }
 
 function setBusy(busy) {
   for (const id of ["run", "submit", "back", "next"]) element(id).disabled = busy;
-  element("steps").querySelectorAll("button").forEach((step) => { step.disabled = busy; });
+  element("quiz").querySelectorAll("#steps button, #choices input").forEach((control) => { control.disabled = busy; });
 }
 
 function setVerdict(kind, text) {
-  element("verdict").className = kind;
-  element("verdict").textContent = text;
+  const target = element(current.options ? "choice-result" : "verdict");
+  target.className = kind;
+  target.textContent = text;
 }
 
 async function checkCode() {
@@ -262,13 +317,52 @@ async function checkCode() {
 element("run").addEventListener("click", async () => {
   setBusy(true);
   const result = await checkCode();
-  if (result.isRight) setVerdict("right", `✓ All ${result.total} tests passed. You can submit this now.`);
-  else if (result.status === "ok") setVerdict("wrong", `${result.passed} of ${result.total} tests passed. See the terminal for what went wrong.`);
+  if (result.isRight) setVerdict("right", `✓ You passed ${allTests(result.total)}. You can submit this now.`);
+  else if (result.status === "ok") setVerdict("wrong", `${testCount(result.passed, result.total)} passed. See the terminal for what went wrong.`);
   else setVerdict("wrong", "Your code stopped with a problem. Read the message below.");
   setBusy(false);
 });
 
+function allTests(total) {
+  return total === 1 ? "the test" : `all ${total} tests`;
+}
+
+function testCount(passed, total) {
+  return `${passed} of ${total} ${total === 1 ? "test" : "tests"}`;
+}
+
+function reportSubmitProblem(saved) {
+  setVerdict("wrong", saved.error === "locked"
+    ? "This exercise is locked now, so your answer wasn't submitted. Please contact your course admin."
+    : "We couldn't submit your answer. Please try again.");
+}
+
+async function submitChoice() {
+  const choice = selectedChoice();
+  if (!choice) return setVerdict("wrong", "Choose an answer before submitting.");
+  setBusy(true);
+  setVerdict("", "");
+  try {
+    const saved = await callBackend({ action: "submit", token, questionId: current.id, choice });
+    if (saved.error === "session") return logOut();
+    if (saved.ok) {
+      current.submission = { submittedAt: saved.submittedAt, passed: saved.passed, code: choice };
+      renderLastSubmitted(current);
+      renderSteps();
+      setVerdict(saved.passed ? "right" : "wrong", saved.passed
+        ? "✓ Correct! Your answer is submitted."
+        : "Not quite. Your answer is saved, and you can try again.");
+    } else {
+      reportSubmitProblem(saved);
+    }
+  } catch (error) {
+    setVerdict("wrong", "We couldn't reach the server, so your answer wasn't submitted. Please try again.");
+  }
+  setBusy(false);
+}
+
 element("submit").addEventListener("click", async () => {
+  if (current.options) return submitChoice();
   const code = editor.getValue();
   if (!code.trim()) return setVerdict("wrong", "Write your code before submitting.");
   setBusy(true);
@@ -282,12 +376,10 @@ element("submit").addEventListener("click", async () => {
       renderLastSubmitted(current);
       renderSteps();
       setVerdict(result.isRight ? "right" : "wrong", result.isRight
-        ? `✓ Submitted, and your answer passed all ${result.total} tests.`
-        : `Submitted, but your answer passed ${result.passed} of ${result.total} tests. You can fix it and submit again.`);
-    } else if (saved.error === "locked") {
-      setVerdict("wrong", "This exercise is locked now, so your answer wasn't submitted. Please contact your course admin.");
+        ? `✓ Submitted, and your answer passed ${allTests(result.total)}.`
+        : `Submitted, but your answer passed ${testCount(result.passed, result.total)}. You can fix it and submit again.`);
     } else {
-      setVerdict("wrong", "We couldn't submit your answer. Please try again.");
+      reportSubmitProblem(saved);
     }
   } catch (error) {
     setVerdict("wrong", "We couldn't reach the server, so your answer wasn't submitted. Please try again.");
