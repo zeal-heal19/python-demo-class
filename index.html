@@ -76,7 +76,9 @@
   .module + .module { border-top: 1px solid var(--line); }
   .num { font-family: var(--mono); font-size: .85rem; font-weight: 700; color: var(--primary); padding-top: 2px; }
   .module h3 { font-size: 1rem; font-weight: 600; }
-  .module p { grid-column: 2; margin: 3px 0 0; color: var(--muted); font-size: .9rem; line-height: 1.45; }
+  .module p { grid-column: 2; margin: 3px 0 0; color: var(--primary); font-size: .82rem; font-weight: 600; }
+  .module ul { grid-column: 2; margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: .9rem; line-height: 1.45; }
+  .module ul li + li { margin-top: 4px; }
 
   /* Registration card */
   .form-card { position: sticky; top: 76px; margin-top: -190px; background: #fff; border: 1px solid var(--line); border-radius: 10px;
@@ -173,12 +175,12 @@
   <div class="wrap">
     <div class="hero-text">
       <p class="eyebrow">One-month weekend course for freshers and career changers</p>
-      <h1>Learn Python from your first program to a finished project</h1>
+      <h1>Learn Python from your first program to object-oriented programming</h1>
       <p class="sub">Weekend classes over one month, with course recordings and hands-on lab practice. No coding experience needed, and you can attend a free demo class before you decide.</p>
       <ul class="meta">
         <li><b>1</b> month</li>
         <li>Weekend classes</li>
-        <li><b>8</b> modules</li>
+        <li><b>8</b> sessions, <b>2</b> hours each</li>
         <li>Course recordings</li>
         <li>Practice lab</li>
         <li>Course fee <b>₹2,499</b></li>
@@ -192,16 +194,16 @@
     <div class="col-main">
       <section id="syllabus" aria-labelledby="syllabus-title">
         <h2 id="syllabus-title">Course syllabus</h2>
-        <p class="lede">Eight modules over one month of weekend classes, from Python basics to a project of your own.</p>
+        <p class="lede">Eight 2-hour sessions across four weekends, from your first program to object-oriented programming and debugging.</p>
         <ol class="modules">
-          <li class="module"><span class="num">01</span><h3>Getting started</h3><p>What Python is and where it's used, your first program, variables, data types, operators, input and output</p></li>
-          <li class="module"><span class="num">02</span><h3>Decisions and loops</h3><p>if, elif and else, for and while loops, break and continue, logic practice problems</p></li>
-          <li class="module"><span class="num">03</span><h3>Working with collections</h3><p>Strings, lists, tuples, dictionaries, sets and comprehensions</p></li>
-          <li class="module"><span class="num">04</span><h3>Functions</h3><p>Defining and calling functions, arguments, return values, scope and lambda functions</p></li>
-          <li class="module"><span class="num">05</span><h3>Files and errors</h3><p>Reading and writing files, CSV and JSON, handling errors with try and except, debugging</p></li>
-          <li class="module"><span class="num">06</span><h3>Object-oriented programming</h3><p>Classes, objects, attributes, methods and inheritance</p></li>
-          <li class="module"><span class="num">07</span><h3>Modules and tools</h3><p>The standard library, pip, virtual environments, Git and GitHub basics</p></li>
-          <li class="module"><span class="num">08</span><h3>Final project and career prep</h3><p>Building and publishing a project on GitHub, Python interview questions, resume and LinkedIn tips</p></li>
+          <li class="module"><span class="num">01</span><h3>Introduction to Python</h3><p>Session 1, Weekend 1 (2 Hours)</p><ul><li>What Python is, and where it's used in real work</li><li>Key features: easy to read, interpreted, dynamically typed, large standard library</li><li>A short history of Python, including Python 2 and Python 3</li><li>Installing Python and checking that it works</li><li>Setting up IDEs: VS Code, PyCharm and Jupyter</li><li>Writing and running your first Python program</li><li>Practice: print a short introduction about yourself</li></ul></li>
+          <li class="module"><span class="num">02</span><h3>Basic syntax and data types</h3><p>Session 2, Weekend 1 (2 Hours)</p><ul><li>Python syntax: indentation, comments and statements</li><li>Variables and naming conventions</li><li>Data types: int, float, str, bool and None</li><li>Checking a type with type()</li><li>Type conversion with int(), float(), str() and bool()</li><li>Operators: arithmetic, comparison, logical and assignment</li><li>Practice: calculate a bill total and a simple percentage</li></ul></li>
+          <li class="module"><span class="num">03</span><h3>Basic functions: input and output</h3><p>Session 3, Weekend 2 (2 Hours)</p><ul><li>Showing output with print(), including sep and end</li><li>Reading user input with input()</li><li>Why input() returns text, and how to convert it to a number</li><li>Output formatting with f-strings</li><li>Output formatting with .format() and % formatting</li><li>Formatting decimal places and aligning text</li><li>Practice: build a small marks or salary calculator</li></ul></li>
+          <li class="module"><span class="num">04</span><h3>Control flow</h3><p>Session 4, Weekend 2 (2 Hours)</p><ul><li>Conditional statements: if, elif and else</li><li>Nested conditions, and combining them with and, or and not</li><li>for loops and range()</li><li>while loops, and how to avoid endless loops</li><li>Loop control: break, continue and pass</li><li>Nested loops and common beginner mistakes</li><li>Practice: grade calculator, multiplication table and number patterns</li></ul></li>
+          <li class="module"><span class="num">05</span><h3>Data structures</h3><p>Session 5, Weekend 3 (2 Hours)</p><ul><li>Lists: indexing, slicing, and methods such as append() and pop()</li><li>Tuples: immutability and unpacking</li><li>Dictionaries: keys and values, and methods such as keys() and items()</li><li>Sets: unique values and set operations</li><li>List comprehensions</li><li>Choosing the right data structure</li><li>Practice: remove duplicates and count how often items appear</li></ul></li>
+          <li class="module"><span class="num">06</span><h3>Functions and modules</h3><p>Session 6, Weekend 3 (2 Hours)</p><ul><li>Defining functions with def and return</li><li>Parameters: positional, keyword and default</li><li>Flexible parameters with *args and **kwargs</li><li>Lambda functions</li><li>Scope: global and local variables</li><li>Using modules and packages with import</li><li>Installing packages with pip</li><li>Practice: write reusable functions and your own small module</li></ul></li>
+          <li class="module"><span class="num">07</span><h3>Object-oriented programming (OOP)</h3><p>Session 7, Weekend 4 (2 Hours)</p><ul><li>Classes and objects, with __init__ and self</li><li>Attributes and methods</li><li>Inheritance and polymorphism</li><li>Magic methods such as __str__ and __len__</li><li>Decorators: @property and @staticmethod</li><li>Practice: build a BankAccount or Student class</li></ul></li>
+          <li class="module"><span class="num">08</span><h3>Error handling and debugging</h3><p>Session 8, Weekend 4 (2 Hours)</p><ul><li>Common errors, and how to read a traceback</li><li>Handling exceptions with try, except and finally</li><li>Raising your own exceptions with raise</li><li>Recording what a program does with the logging module</li><li>Finding bugs step by step with pdb</li><li>Course review and next steps</li><li>Practice: find and fix the bugs in a broken program</li></ul></li>
         </ol>
       </section>
 
@@ -209,7 +211,7 @@
         <h2 id="included-title">What's included</h2>
         <p class="lede">Everything you need to learn the material and keep practising it.</p>
         <ul class="included" style="margin-bottom:0">
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg><div><b>Weekend classes</b><span>Finish the course in one month, with classes on weekends.</span></div></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg><div><b>Weekend classes</b><span>Finish the course in one month, with 2-hour classes on weekends.</span></div></li>
           <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg><div><b>Course recordings</b><span>Go back over any topic with recordings of the course sessions.</span></div></li>
           <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="m14 5-4 14"/></svg><div><b>Practice lab</b><span>Write and run Python in your browser, with nothing to install.</span></div></li>
           <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/></svg><div><b>Free demo class</b><span>See how the course is taught before you pay anything.</span></div></li>
