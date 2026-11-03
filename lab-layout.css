@@ -85,6 +85,28 @@ details pre { margin: 8px 0 0; padding: 10px 12px; background: var(--page); bord
 #summary .no { color: var(--muted); white-space: nowrap; }
 .results-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
+/* Module and student cards */
+.card-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; list-style: none; margin: 0; padding: 0; }
+.topic-card { width: 100%; height: 100%; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; text-align: left; padding: 16px;
+  background: #fff; border: 1px solid var(--line); border-radius: 8px; font: inherit; color: var(--ink); cursor: pointer; }
+.topic-card:hover:not([disabled]) { border-color: var(--primary); }
+.topic-card[disabled] { background: #f6f8f8; color: var(--muted); cursor: not-allowed; }
+.topic-number { font-family: var(--mono); font-size: .85rem; font-weight: 700; color: var(--primary); }
+.topic-card[disabled] .topic-number { color: var(--muted); }
+.topic-name { font-weight: 600; }
+.badge { grid-column: 2; justify-self: start; font-size: .76rem; font-weight: 600; border-radius: 99px; padding: 3px 10px; white-space: nowrap; }
+/* --percent fills the ring, and the inner circle leaves only its edge showing. */
+.ring { grid-column: 3; grid-row: 1 / span 2; width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(var(--primary) calc(var(--percent) * 1%), #dbe5e4 0); }
+.ring span { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: #fff; font-size: .76rem; font-weight: 700; color: var(--ink); }
+.topic-card[disabled] .ring span { background: #f6f8f8; color: var(--muted); }
+.badge.locked { background: #e7ecec; color: var(--muted); }
+.badge.open { background: #fef3d7; color: #6b4300; }
+.badge.submitted { background: var(--primary-tint); color: #0b5c56; }
+@media (max-width: 640px) {
+  .card-list { grid-template-columns: minmax(0, 1fr); }
+}
+
 [hidden] { display: none !important; }
 
 /* Two columns would be too narrow to read or type on a phone, so the panels stack. */

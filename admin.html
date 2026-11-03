@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin | WeekendClasses</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="lab-layout.css">
+<style>
+  .link-button { background: none; border: 0; padding: 0; font: inherit; font-size: .86rem; color: var(--on-hero); text-decoration: underline; cursor: pointer; }
+
+  #page { flex: 1; min-height: 0; overflow: auto; padding: 28px 20px 48px; }
+  .page-inner { max-width: 960px; margin: 0 auto; }
+  .page-inner h2 { font-size: 1.5rem; }
+  .summary { color: var(--muted); margin: 6px 0 18px; }
+  #problem { color: var(--error); font-weight: 600; margin: 0 0 14px; }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .toolbar .btn { padding: 8px 16px; }
+  #search { flex: 1 1 220px; padding: 9px 12px; font: inherit; color: var(--ink); border: 1px solid #a9bcba; border-radius: 6px; background: #fff; }
+
+  .student-detail { grid-column: 2; font-size: .84rem; color: var(--muted); overflow-wrap: anywhere; }
+  .student-card .ring { grid-row: 1 / span 3; }
+  .badge.inactive { background: #fbe4e2; color: var(--error); }
+
+  #questions { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .question { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+  .question-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; }
+  .question h3 { margin: 0; font-size: 1rem; }
+  .question p { margin: 8px 0 0; font-size: .92rem; }
+  .question .task { color: var(--muted); }
+  .question .answer-label { font-weight: 600; }
+  .question pre { margin: 6px 0 0; padding: 10px 12px; background: var(--page); border: 1px solid var(--line); border-radius: 6px;
+    font: .88rem/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .question details { margin-top: 10px; }
+  .badge.right { background: #dcf5e4; color: #14532d; }
+  .badge.wrong { background: #fbe4e2; color: var(--error); }
+  .question .badge { grid-column: auto; }
+
+  .login-page { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 24px 20px; }
+  .login-card { margin: auto; width: 100%; max-width: 400px; background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 28px; box-shadow: 0 12px 32px rgba(7, 57, 60, .12); }
+  .login-card h2 { font-size: 1.5rem; }
+  .login-card > p { color: var(--muted); margin: 6px 0 20px; font-size: .94rem; }
+  .login-card label { display: block; font-weight: 600; font-size: .88rem; margin-bottom: 4px; }
+  .login-card input { width: 100%; padding: 11px 12px; font: inherit; color: var(--ink); border: 1px solid #a9bcba; border-radius: 6px; background: #fff; margin-bottom: 14px; }
+  .login-card .btn { width: 100%; margin-top: 4px; }
+  #login-status { color: var(--error); font-weight: 600; font-size: .9rem; margin: 12px 0 0; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <h1>WeekendClasses Admin</h1>
+    <button class="link-button" id="logout" type="button" hidden>Log out</button>
+  </div>
+</header>
+
+<main class="login-page" id="login-view">
+  <div class="login-card">
+    <h2>Admin login</h2>
+    <p>For the course admin only.</p>
+    <form id="login-form" novalidate>
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="30" required>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" maxlength="100" required>
+      <button class="btn" id="login-submit" type="submit">Log in</button>
+      <p id="login-status" role="alert" hidden></p>
+    </form>
+  </div>
+</main>
+
+<main id="page" hidden>
+  <div class="page-inner">
+    <div class="toolbar" id="back-bar" hidden>
+      <button class="btn secondary" id="back" type="button"></button>
+    </div>
+    <h2 id="heading" tabindex="-1"></h2>
+    <p class="summary" id="summary" aria-live="polite"></p>
+    <p id="problem" role="alert" hidden></p>
+
+    <div id="students-view" hidden>
+      <div class="toolbar">
+        <input type="search" id="search" placeholder="Search by name or username" aria-label="Search students">
+        <button class="btn secondary" id="refresh" type="button">Refresh</button>
+      </div>
+      <ol class="card-list" id="student-list"></ol>
+    </div>
+
+    <ol class="card-list" id="module-list" hidden></ol>
+    <ol id="questions" hidden></ol>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="student-api.js"></script>
+<script src="progress-ring.js"></script>
+<script>
+const ADMIN_TOKEN_KEY = "admin-session";
+const element = (id) => document.getElementById(id);
+const make = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+
+let students = [];
+let currentStudent = null;
+// Only the newest request may draw the page, in case an earlier one finishes later.
+let latestRequest = 0;
+let goBack = null;
+
+function getAdminToken() {
+  try {
+    return sessionStorage.getItem(ADMIN_TOKEN_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveAdminToken(token) {
+  try {
+    sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+  } catch (error) {
+    // The login form reports this when it can't read the token back.
+  }
+}
+
+function clearAdminToken() {
+  try {
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+  } catch (error) {
+    // Nothing was stored, so there's nothing to clear.
+  }
+}
+
+function showLogin(message) {
+  clearAdminToken();
+  students = [];
+  currentStudent = null;
+  latestRequest++;
+  element("page").hidden = true;
+  element("logout").hidden = true;
+  element("login-view").hidden = false;
+  element("login-form").reset();
+  element("login-status").hidden = !message;
+  element("login-status").textContent = message || "";
+}
+
+function showPage({ heading, summary, back = null, view }) {
+  element("login-view").hidden = true;
+  element("page").hidden = false;
+  element("logout").hidden = false;
+  element("heading").textContent = heading;
+  element("summary").textContent = summary;
+  element("problem").hidden = true;
+  element("students-view").hidden = view !== "students";
+  element("module-list").hidden = view !== "modules";
+  element("questions").hidden = view !== "questions";
+  element("back-bar").hidden = !back;
+  element("back").textContent = back ? back.label : "";
+  goBack = back ? back.action : null;
+  element("page").scrollTop = 0;
+  element("heading").focus({ preventScroll: true });
+}
+
+function showProblem(message) {
+  element("summary").textContent = "";
+  element("problem").textContent = message;
+  element("problem").hidden = false;
+}
+
+// Sends a request as the admin. Returns null when the page shouldn't use the result.
+async function callAsAdmin(params) {
+  const request = ++latestRequest;
+  try {
+    const result = await callBackend({ ...params, token: getAdminToken() });
+    if (request !== latestRequest) return null;
+    if (result.error === "session") {
+      showLogin("Your session has ended. Please log in again.");
+      return null;
+    }
+    if (!result.ok) throw new Error(result.error);
+    return result;
+  } catch (error) {
+    if (request === latestRequest) showProblem("We couldn't load this. Please check your connection and try again.");
+    return null;
+  }
+}
+
+function formatWhen(iso) {
+  return new Date(iso).toLocaleString();
+}
+
+function totalsFor(student) {
+  const unlocked = student.modules.filter((module) => !module.locked);
+  return {
+    unlockedCount: unlocked.length,
+    completed: unlocked.reduce((sum, module) => sum + module.completed, 0),
+    total: unlocked.reduce((sum, module) => sum + module.total, 0),
+  };
+}
+
+/* All students */
+
+function renderStudentCards() {
+  const query = element("search").value.trim().toLowerCase();
+  const matches = students.filter(({ name, username }) => `${name} ${username}`.toLowerCase().includes(query));
+  element("student-list").replaceChildren(...matches.map((student) => {
+    const { unlockedCount, completed, total } = totalsFor(student);
+    const card = make("button", { type: "button", className: "topic-card student-card" });
+    const last = student.lastSubmittedAt ? `Last submitted ${formatWhen(student.lastSubmittedAt)}` : "No submissions yet";
+    card.append(
+      make("span", { className: "topic-number", textContent: String(students.indexOf(student) + 1).padStart(2, "0") }),
+      make("span", { className: "topic-name", textContent: student.name }),
+      createProgressRing(percentOf(completed, total)),
+      make("span", {
+        className: `badge ${student.active ? "submitted" : "inactive"}`,
+        textContent: !student.active ? "Inactive" : total ? `${completed} of ${total} completed` : "Nothing unlocked yet",
+      }),
+      make("span", { className: "student-detail", textContent: `${student.username}. ${unlockedCount} of ${student.modules.length} modules unlocked. ${last}.` }),
+    );
+    card.addEventListener("click", () => openStudent(student.username));
+    const item = make("li");
+    item.append(card);
+    return item;
+  }));
+  if (students.length && !matches.length) {
+    element("student-list").append(make("li", { textContent: "No students match your search.", className: "summary" }));
+  }
+}
+
+function studentsSummary() {
+  if (!students.length) return "No students yet. Add them with Student admin > Add student in the Google Sheet.";
+  const active = students.filter((student) => student.active).length;
+  return `${students.length} ${students.length === 1 ? "student" : "students"}, ${active} active. The percentage counts questions completed in unlocked modules.`;
+}
+
+async function loadStudents() {
+  showPage({ heading: "Students", summary: "Loading students...", view: "students" });
+  element("student-list").replaceChildren();
+  const result = await callAsAdmin({ action: "adminStudents" });
+  if (!result) return;
+  students = result.students;
+  element("summary").textContent = studentsSummary();
+  renderStudentCards();
+}
+
+function showStudents() {
+  showPage({ heading: "Students", summary: studentsSummary(), view: "students" });
+  renderStudentCards();
+}
+
+/* One student's dashboard */
+
+function renderModules(student) {
+  const { unlockedCount, completed, total } = totalsFor(student);
+  showPage({
+    heading: student.name,
+    summary: `${student.username}${student.active ? "" : " (inactive)"}. ${unlockedCount} of ${student.modules.length} modules unlocked, ${completed} of ${total} questions completed.`,
+    back: { label: "All students", action: showStudents },
+    view: "modules",
+  });
+  element("module-list").replaceChildren(...student.modules.map((module, index) => {
+    const state = module.locked ? "locked" : module.total && module.completed === module.total ? "submitted" : "open";
+    const card = make("button", { type: "button", className: "topic-card" });
+    card.append(
+      make("span", { className: "topic-number", textContent: String(index + 1).padStart(2, "0") }),
+      make("span", { className: "topic-name", textContent: module.topic }),
+      createProgressRing(percentOf(module.completed, module.total)),
+      make("span", {
+        className: `badge ${state}`,
+        textContent: `${module.locked ? "Locked. " : ""}${state === "submitted" ? "✓ " : ""}${module.completed} of ${module.total} completed`,
+      }),
+    );
+    card.addEventListener("click", () => openModule(module));
+    const item = make("li");
+    item.append(card);
+    return item;
+  }));
+}
+
+async function openStudent(username) {
+  showPage({ heading: "Loading...", summary: "", back: { label: "All students", action: showStudents }, view: "modules" });
+  element("module-list").replaceChildren();
+  const result = await callAsAdmin({ action: "adminStudent", username });
+  if (!result) return;
+  currentStudent = result.student;
+  renderModules(currentStudent);
+}
+
+/* One module's answers */
+
+function labelledText(label, text) {
+  const line = make("p");
+  line.append(make("span", { className: "answer-label", textContent: `${label}: ` }), document.createTextNode(text));
+  return line;
+}
+
+function renderQuestion(question, index) {
+  const { submission } = question;
+  const item = make("li", { className: "question" });
+  const head = make("div", { className: "question-head" });
+  const state = !submission ? "locked" : submission.passed ? "right" : "wrong";
+  head.append(
+    make("h3", { textContent: `${index + 1}. ${question.title}` }),
+    make("span", { className: `badge ${state}`, textContent: { locked: "Not attempted", right: "✓ Correct", wrong: "Not correct" }[state] }),
+  );
+  item.append(head, make("p", { className: "task", textContent: question.task }));
+
+  if (submission) {
+    const tries = submission.attempts === 1 ? "1 attempt" : `${submission.attempts} attempts`;
+    item.append(make("p", { className: "task", textContent: `${tries}. Last submitted ${formatWhen(submission.submittedAt)}.` }));
+  }
+  if (question.options) {
+    if (submission) item.append(labelledText("Their answer", submission.code));
+    item.append(labelledText("Correct answer", question.answer));
+  } else {
+    if (submission) {
+      item.append(make("p", { className: "answer-label", textContent: "Their code" }), make("pre", { textContent: submission.code }));
+    }
+    const solution = make("details");
+    solution.append(make("summary", { textContent: "Show the model solution" }), make("pre", { textContent: question.solution }));
+    item.append(solution);
+  }
+  return item;
+}
+
+function openModule(module) {
+  const attempted = module.questions.filter((question) => question.submission).length;
+  showPage({
+    heading: module.topic,
+    summary: `${currentStudent.name}${module.locked ? ". This module is locked for this student" : ""}. ${attempted} of ${module.total} attempted, ${module.completed} of ${module.total} completed.`,
+    back: { label: currentStudent.name, action: () => renderModules(currentStudent) },
+    view: "questions",
+  });
+  element("questions").replaceChildren(...module.questions.map(renderQuestion));
+}
+
+/* Login */
+
+element("login-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const button = element("login-submit");
+  const status = element("login-status");
+  const showError = (message) => {
+    status.textContent = message;
+    status.hidden = false;
+  };
+  status.hidden = true;
+  const username = form.elements.username.value.trim();
+  const password = form.elements.password.value;
+  if (!username || !password) return showError("Please enter your username and password.");
+
+  button.disabled = true;
+  button.textContent = "Logging in...";
+  try {
+    const result = await callBackend({ action: "adminLogin", username, password });
+    if (result.ok) {
+      saveAdminToken(result.token);
+      if (getAdminToken()) loadStudents();
+      else showError("Your browser is blocking this site's storage. Please allow it, then log in again.");
+    } else if (result.error === "locked") {
+      showError("Too many failed attempts. Please wait 15 minutes, then try again.");
+    } else if (result.error === "invalid") {
+      showError("Incorrect username or password.");
+      form.elements.password.value = "";
+      form.elements.password.focus();
+    } else {
+      showError("We couldn't log you in. Please try again.");
+    }
+  } catch (error) {
+    showError("We couldn't reach the server. Please check your connection and try again.");
+  }
+  button.disabled = false;
+  button.textContent = "Log in";
+});
+
+element("logout").addEventListener("click", () => showLogin());
+element("refresh").addEventListener("click", loadStudents);
+element("search").addEventListener("input", renderStudentCards);
+element("back").addEventListener("click", () => {
+  latestRequest++;
+  if (goBack) goBack();
+});
+
+if (getAdminToken()) loadStudents();
+</script>
+</body>
+</html>
