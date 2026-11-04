@@ -29,7 +29,10 @@
   #hand-toggle[aria-checked="true"] .switch-track { background: var(--primary); }
   #hand-toggle[aria-checked="true"] .switch-track::after { left: 16px; }
   #hand-status { margin: 0; padding: 3px 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: .78rem; }
+  /* The message can sit over the board, so clicks pass through it to the drawing. */
+  #hand-status { pointer-events: none; }
   #hand-status:empty { display: none; }
+  #convert-selected { height: 32px; padding: 0 10px; font-size: .8rem; white-space: nowrap; }
   .notice-button { margin-left: 10px; padding: 2px 8px; font: inherit; font-size: .84rem; cursor: pointer; }
   .menu-button { position: absolute; top: 10px; left: 10px; width: 44px; height: 44px; display: grid; place-items: center; padding: 0; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 10px rgba(7, 57, 60, .14); color: var(--ink); cursor: pointer; }
   .menu-button:hover, .menu-button[aria-expanded="true"] { background: var(--primary-tint); color: var(--primary); }
@@ -149,7 +152,8 @@
   <p id="save-status" role="status"></p>
   <div class="handwriting">
     <p id="hand-status" role="status"></p>
-    <button id="hand-toggle" type="button" role="switch" aria-checked="false" title="Turn your pen writing into typed text after a short pause. Images of your writing go to Google Gemini.">
+    <button class="btn" id="convert-selected" type="button" hidden>Convert to text</button>
+    <button id="hand-toggle" type="button" role="switch" aria-checked="false" title="Lets you turn chosen pen writing into typed text. Images of the writing you choose go to Google Gemini.">
       <span class="switch-track" aria-hidden="true"></span>
       <span id="hand-toggle-label">Handwriting to text: Off</span>
     </button>
@@ -181,6 +185,7 @@ const TOOLS = [
   { id: "ellipse", label: "Circle", key: "o", icon: '<ellipse cx="12" cy="12" rx="9" ry="7"/>' },
   { id: "text", label: "Text", key: "t", icon: '<path d="M5 6V4h14v2M12 4v16M9 20h6"/>' },
   { id: "eraser", label: "Eraser", key: "e", icon: '<path d="M8 20l-5-5L14 4l7 7-9 9zM8 20h13"/>' },
+  { id: "convert", label: "Convert handwriting: drag a box around your words", key: "c", icon: '<path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M9 9h6M12 9v7"/>' },
 ];
 // Colours are stored by name, so a drawing stays readable when its background changes.
 const COLORS = [["Default ink", "ink"], ["Red", "red"], ["Blue", "blue"], ["Green", "green"]];
@@ -214,7 +219,6 @@ const FONT = "system-ui, sans-serif";
 const LINE_HEIGHT = 1.25;
 const HAND_FONT = "Caveat, cursive";
 const HAND_KEY = "board-handwriting";
-const HAND_PAUSE_MS = 1500;
 const HAND_IMAGE_HEIGHT = 96;
 const HAND_MAX_IMAGE_WIDTH = 2048;
 const HAND_INK_WIDTH = 3;
@@ -637,7 +641,6 @@ function startGesture(event) {
     gesture = { kind: "pan", startX: event.clientX, startY: event.clientY, viewX: view.x, viewY: view.y };
     liveCanvas.classList.add("panning");
   } else if (activeTool === "pen") {
-    clearTimeout(handTimer);
     gesture = { kind: "pen", shape: { type: "pen", color, size: SIZES[sizeIndex][1], points: [roundPoint(x), roundPoint(y)] } };
     clearLive();
     liveContext.fillStyle = BACKGROUNDS[background].paint[color];
@@ -651,6 +654,9 @@ function startGesture(event) {
     selected = [];
     clearLive();
     eraseAt(x, y);
+  } else if (activeTool === "convert") {
+    gesture = { kind: "marquee", convert: true, startX: x, startY: y, endX: x, endY: y };
+    clearLive();
   } else if (activeTool === "select") {
     startSelecting(x, y, event.shiftKey);
   }
@@ -729,7 +735,6 @@ function finishGesture(event) {
   if (finished.kind === "pen") {
     addShape(finished.shape);
     clearLive();
-    noteHandwrittenStroke(finished.shape);
   } else if (finished.kind === "shape") {
     const { points } = finished.shape;
     clearLive();
@@ -743,6 +748,8 @@ function finishGesture(event) {
       renderBase();
     }
     renderLive();
+  } else if (finished.kind === "marquee" && finished.convert) {
+    finishConvertBox(finished);
   } else if (finished.kind === "marquee") {
     finishMarquee(finished);
   }
@@ -1120,9 +1127,8 @@ document.addEventListener("selectionchange", updateFormatButtons);
 /* Handwriting to text */
 
 let handOn = false;
-let handTimer = null;
 let handNoteTimer = null;
-let pendingStrokes = [];
+let toolBeforeConvert = "pen";
 // Answers from before the switch was turned off, or from another canvas, are ignored.
 let handGeneration = 0;
 let nextHandJob = 0;
@@ -1152,23 +1158,48 @@ function setHandSwitch(on) {
   handOn = on;
   handGeneration++;
   handJobs.clear();
-  forgetPendingHandwriting();
   element("hand-toggle").setAttribute("aria-checked", String(on));
   element("hand-toggle-label").textContent = `Handwriting to text: ${on ? "On" : "Off"}`;
   rememberHandChoice();
-  if (!on) setHandStatus("");
+  controlButtons.tools.convert.hidden = !on;
+  if (!on) {
+    setHandStatus("");
+    if (tool === "convert") setTool(toolBeforeConvert);
+  }
+  updateControls();
 }
 
-function forgetPendingHandwriting() {
-  clearTimeout(handTimer);
-  pendingStrokes = [];
+function isConvertibleStroke(shape) {
+  return shape.type === "pen" && !shape.locked;
 }
 
-function noteHandwrittenStroke(stroke) {
-  if (!handOn) return;
-  pendingStrokes.push(stroke);
-  clearTimeout(handTimer);
-  handTimer = setTimeout(convertPendingHandwriting, HAND_PAUSE_MS);
+// Writing counts as chosen when its middle is inside the box, so an arrow that only crosses the edge stays out.
+function strokesInBox({ startX, startY, endX, endY }) {
+  const left = Math.min(startX, endX);
+  const right = Math.max(startX, endX);
+  const top = Math.min(startY, endY);
+  const bottom = Math.max(startY, endY);
+  return shapes.filter((shape) => {
+    if (!isConvertibleStroke(shape)) return false;
+    const bounds = boundsOf(shape);
+    const middleX = (bounds[0] + bounds[2]) / 2;
+    const middleY = (bounds[1] + bounds[3]) / 2;
+    return middleX >= left && middleX <= right && middleY >= top && middleY <= bottom;
+  });
+}
+
+function finishConvertBox(box) {
+  const strokes = strokesInBox(box);
+  setTool(toolBeforeConvert);
+  if (!strokes.length) return setHandStatus("No pen writing in that box. Drag it around your words.", true);
+  convertStrokes(strokes);
+}
+
+function convertSelection() {
+  const strokes = selected.filter(isConvertibleStroke);
+  if (!strokes.length) return;
+  setSelection([]);
+  convertStrokes(strokes);
 }
 
 function lineFrom(strokes) {
@@ -1255,21 +1286,13 @@ function handwritingImage({ strokes, left, right, top, bottom }) {
   return canvas.toDataURL("image/png");
 }
 
-function convertPendingHandwriting() {
-  if (!handOn || !pendingStrokes.length) return;
-  // Waits while the pen is down or text is being typed, so a word is never cut in half.
-  if (gesture || textEditor) {
-    handTimer = setTimeout(convertPendingHandwriting, HAND_PAUSE_MS);
-    return;
-  }
-  const strokes = pendingStrokes.filter((stroke) => shapes.includes(stroke));
-  pendingStrokes = [];
+function convertStrokes(strokes) {
   for (const line of groupIntoLines(strokes)) {
     const id = nextHandJob++;
     handJobs.set(id, { line, boardId: currentBoard.id, generation: handGeneration });
     readHandwriting(id, line);
   }
-  if (handJobs.size) setHandStatus("Reading your writing...");
+  setHandStatus("Reading your writing...");
 }
 
 function handProblemMessage(error) {
@@ -1326,14 +1349,18 @@ function finishHandJob(id, text, problem) {
   setHandStatus("Converted. Press Ctrl+Z to bring your writing back.", true);
 }
 
+element("convert-selected").addEventListener("click", () => {
+  element("convert-selected").blur();
+  convertSelection();
+});
+
 element("hand-toggle").addEventListener("click", async () => {
   const on = !handOn;
   setHandSwitch(on);
   element("hand-toggle").blur();
   if (!on) return;
-  setTool("pen");
   loadHandFont();
-  setHandStatus("On. Write with the pen, then pause.", true);
+  setHandStatus("Press C, then drag a box around your words.", true);
 });
 
 /* Zoom */
@@ -1465,6 +1492,7 @@ element("zoom-reset").addEventListener("click", resetView);
 
 function setTool(id) {
   closeTextEditor(true);
+  if (id === "convert" && tool !== "convert") toolBeforeConvert = tool;
   tool = id;
   if (id !== "select") selected = [];
   liveCanvas.dataset.tool = id;
@@ -1545,6 +1573,7 @@ function updateControls() {
   controlButtons.redo.disabled = !redoStack.length;
   controlButtons.clear.disabled = shapes.every((shape) => shape.locked);
   controlButtons.lock.disabled = !selected.some((shape) => !shape.locked);
+  element("convert-selected").hidden = !handOn || !selected.some(isConvertibleStroke);
   const lockedCount = shapes.filter((shape) => shape.locked).length;
   const selectedLocked = selected.filter((shape) => shape.locked).length;
   controlButtons.unlock.disabled = !lockedCount;
@@ -1591,6 +1620,8 @@ document.addEventListener("keydown", (event) => {
     liveCanvas.classList.add("panning");
   } else if (key === "delete" || key === "backspace") {
     deleteSelected();
+  } else if (key === "enter") {
+    if (handOn) convertSelection();
   } else if (key === "escape") {
     setSelection([]);
   } else if (key === "=" || key === "+") {
@@ -1601,7 +1632,7 @@ document.addEventListener("keydown", (event) => {
     resetView();
   } else {
     const match = TOOLS.find((item) => item.key === key);
-    if (match) setTool(match.id);
+    if (match && (match.id !== "convert" || handOn)) setTool(match.id);
   }
 });
 document.addEventListener("keyup", (event) => {
@@ -1868,7 +1899,6 @@ function applyBoard(record) {
   selected = [];
   gesture = null;
   element("canvas-name").textContent = record.name;
-  forgetPendingHandwriting();
   if (shapes.some((shape) => shape.hand)) loadHandFont();
   updateControls();
   resizeCanvases();
@@ -2231,6 +2261,7 @@ new ResizeObserver(resizeCanvases).observe(element("stage"));
 
 async function start() {
   buildToolbar();
+  controlButtons.tools.convert.hidden = true;
   setTool("pen");
   try {
     database = await openDatabase();
