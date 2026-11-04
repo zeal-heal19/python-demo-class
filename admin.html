@@ -12,6 +12,7 @@
 <style>
   .link-button { background: none; border: 0; padding: 0; font: inherit; font-size: .86rem; color: var(--on-hero); text-decoration: underline; cursor: pointer; }
 
+  .admin-links { display: flex; align-items: center; gap: 16px; }
   #page { flex: 1; min-height: 0; overflow: auto; padding: 28px 20px 48px; }
   .page-inner { max-width: 960px; margin: 0 auto; }
   .page-inner h2 { font-size: 1.5rem; }
@@ -55,7 +56,10 @@
 <header class="topbar">
   <div class="wrap">
     <h1>WeekendClasses Admin</h1>
-    <button class="link-button" id="logout" type="button" hidden>Log out</button>
+    <div class="admin-links">
+      <a href="board.html" id="boards-link" hidden>Teaching Boards</a>
+      <button class="link-button" id="logout" type="button" hidden>Log out</button>
+    </div>
   </div>
 </header>
 
@@ -98,9 +102,9 @@
 
 <script src="config.js"></script>
 <script src="student-api.js"></script>
+<script src="admin-api.js"></script>
 <script src="progress-ring.js"></script>
 <script>
-const ADMIN_TOKEN_KEY = "admin-session";
 const element = (id) => document.getElementById(id);
 const make = (tag, props = {}) => Object.assign(document.createElement(tag), props);
 
@@ -110,30 +114,6 @@ let currentStudent = null;
 let latestRequest = 0;
 let goBack = null;
 
-function getAdminToken() {
-  try {
-    return sessionStorage.getItem(ADMIN_TOKEN_KEY);
-  } catch (error) {
-    return null;
-  }
-}
-
-function saveAdminToken(token) {
-  try {
-    sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
-  } catch (error) {
-    // The login form reports this when it can't read the token back.
-  }
-}
-
-function clearAdminToken() {
-  try {
-    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
-  } catch (error) {
-    // Nothing was stored, so there's nothing to clear.
-  }
-}
-
 function showLogin(message) {
   clearAdminToken();
   students = [];
@@ -141,6 +121,7 @@ function showLogin(message) {
   latestRequest++;
   element("page").hidden = true;
   element("logout").hidden = true;
+  element("boards-link").hidden = true;
   element("login-view").hidden = false;
   element("login-form").reset();
   element("login-status").hidden = !message;
@@ -151,6 +132,7 @@ function showPage({ heading, summary, back = null, view }) {
   element("login-view").hidden = true;
   element("page").hidden = false;
   element("logout").hidden = false;
+  element("boards-link").hidden = false;
   element("heading").textContent = heading;
   element("summary").textContent = summary;
   element("problem").hidden = true;

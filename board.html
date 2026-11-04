@@ -5,72 +5,1660 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Teaching Board | WeekendClasses</title>
 <meta name="robots" content="noindex">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="lab-layout.css">
 <style>
-  .board-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-  .board-bar h1 { margin-right: auto; }
-  .board-bar label { color: var(--on-hero); font-size: .86rem; }
-  #board-select { max-width: 200px; padding: 6px 8px; font: inherit; font-size: .88rem; color: var(--ink); background: #fff; border: 1px solid #a9bcba; border-radius: 6px; }
-  .board-bar .btn { padding: 6px 12px; font-size: .86rem; white-space: nowrap; }
+  #library { flex: 1; min-height: 0; overflow: auto; padding: 24px 20px 48px; }
+  .library-inner { max-width: 960px; margin: 0 auto; }
+  .library-inner h2 { font-size: 1.5rem; overflow-wrap: anywhere; }
+  #library-summary { color: var(--muted); margin: 6px 0 16px; }
+  #library-problem { color: var(--error); font-weight: 600; margin: 0 0 14px; }
+  .library-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .library-actions .btn { padding: 8px 16px; }
+  .canvas-item { display: grid; gap: 6px; }
+  .canvas-item-actions { display: flex; gap: 12px; padding-left: 4px; }
+  .text-button { background: none; border: 0; padding: 0; font: inherit; font-size: .84rem; color: var(--primary); text-decoration: underline; cursor: pointer; }
+  .topic-name, .topic-card { overflow-wrap: anywhere; }
+  .topbar-links { display: flex; gap: 16px; }
+  #save-status { position: absolute; left: 10px; bottom: 54px; padding: 3px 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: .78rem; }
+  #stage.tools-hidden #save-status, #stage.tools-hidden .handwriting { display: none; }
+  .handwriting { position: absolute; right: 10px; bottom: 54px; max-width: calc(100% - 20px); display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+  #hand-toggle { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; background: #fff; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font: 600 .8rem system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
+  #hand-toggle:hover { background: var(--page); }
+  .switch-track { position: relative; width: 30px; height: 16px; border-radius: 99px; background: #a9bcba; }
+  .switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+  #hand-toggle[aria-checked="true"] .switch-track { background: var(--primary); }
+  #hand-toggle[aria-checked="true"] .switch-track::after { left: 16px; }
+  #hand-status { margin: 0; padding: 3px 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: .78rem; }
+  #hand-status:empty { display: none; }
+  .notice-button { margin-left: 10px; padding: 2px 8px; font: inherit; font-size: .84rem; cursor: pointer; }
+  .menu-button { position: absolute; top: 10px; left: 10px; width: 44px; height: 44px; display: grid; place-items: center; padding: 0; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 10px rgba(7, 57, 60, .14); color: var(--ink); cursor: pointer; }
+  .menu-button:hover, .menu-button[aria-expanded="true"] { background: var(--primary-tint); color: var(--primary); }
+  .menu-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  .board-menu { position: absolute; top: 62px; left: 10px; width: 260px; max-width: calc(100% - 20px); max-height: calc(100% - 72px); overflow: auto; display: grid; gap: 10px; padding: 14px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px rgba(7, 57, 60, .22); }
+  .board-menu h1 { font-size: 1.05rem; color: var(--ink); }
+  .board-menu label { display: block; margin-bottom: 4px; font-size: .84rem; font-weight: 600; }
+  .menu-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .board-menu .btn { padding: 8px 6px; font-size: .86rem; }
+  .board-menu a { font-size: .86rem; }
   #board-notice { flex: none; margin: 0; padding: 8px 20px; background: #fef3d7; color: #6b4300; font-size: .88rem; font-weight: 600; }
-  #canvas { flex: 1; min-height: 0; position: relative; }
-  #canvas > * { height: 100%; }
-  @media (max-width: 640px) {
-    .board-bar h1, .board-bar label, .board-bar a, #present { display: none; }
-    .board-bar { gap: 6px; }
-    #board-select { flex: 1 1 100%; max-width: none; }
-    .board-bar .btn { flex: 1; padding: 6px 8px; }
+
+  body { user-select: none; -webkit-user-select: none; }
+  #text-input { user-select: text; -webkit-user-select: text; }
+  @font-face { font-family: Caveat; font-weight: 400; font-display: swap; src: url("vendor/caveat/caveat-latin-400-normal.woff2") format("woff2"); }
+  @font-face { font-family: Caveat; font-weight: 700; font-display: swap; src: url("vendor/caveat/caveat-latin-700-normal.woff2") format("woff2"); }
+  #stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #live { touch-action: none; cursor: crosshair; }
+  #live[data-tool="select"] { cursor: default; }
+  #live[data-tool="hand"], #live.panning { cursor: grab; }
+  #live[data-tool="text"] { cursor: text; }
+
+  .tools { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 16px); display: flex; align-items: center; gap: 2px; padding: 4px;
+    background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 10px rgba(7, 57, 60, .14); overflow-x: auto; }
+  .tools button { flex: none; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; background: none; border: 0; border-radius: 6px; color: var(--ink); font: 600 .78rem system-ui, sans-serif; cursor: pointer; }
+  .tools button:hover { background: var(--page); }
+  .tools button[aria-pressed="true"] { background: var(--primary-tint); color: var(--primary); }
+  .tools button[disabled] { opacity: .35; cursor: default; }
+  .tools svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tools .swatch { width: 18px; height: 18px; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 0 0 1px rgba(16, 40, 43, .3); }
+  .tools .gap { flex: none; width: 1px; height: 22px; margin: 0 4px; background: var(--line); }
+  .tools .dot { border-radius: 50%; background: currentColor; }
+
+  .zoom { position: absolute; left: 10px; bottom: 10px; display: flex; align-items: center; gap: 2px; padding: 3px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  .zoom button { min-width: 32px; height: 30px; padding: 0 6px; background: none; border: 0; border-radius: 6px; color: var(--ink); font: 600 .84rem system-ui, sans-serif; cursor: pointer; }
+  .zoom button:hover { background: var(--page); }
+
+  .backgrounds { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 2px; padding: 3px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  .backgrounds button { height: 30px; padding: 0 8px; background: none; border: 0; border-radius: 6px; color: var(--ink); font: 600 .8rem system-ui, sans-serif; cursor: pointer; }
+  .backgrounds button:hover { background: var(--page); }
+  .backgrounds button[aria-pressed="true"] { background: var(--primary-tint); color: var(--primary); }
+
+  #text-input { position: absolute; margin: -1px; padding: 0; min-width: 1.5em; min-height: 1.25em; border: 1px dashed var(--primary); outline: 0; background: transparent; white-space: pre; line-height: 1.25; font-family: system-ui, sans-serif; cursor: text; }
+  #text-input ul { margin: 0; padding: 0 0 0 1.2em; }
+  #text-format { position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 10px rgba(7, 57, 60, .18); }
+  #text-format button { white-space: nowrap; min-width: 32px; height: 30px; padding: 0 6px; background: none; border: 0; border-radius: 6px; color: var(--ink); font: 700 .9rem system-ui, sans-serif; cursor: pointer; }
+  #text-format button:hover { background: var(--page); }
+  #text-format button[aria-pressed="true"] { background: var(--primary-tint); color: var(--primary); }
+  #text-format span { padding: 0 6px; color: var(--muted); font-size: .76rem; white-space: nowrap; }
+  #stage.tools-hidden #text-format { display: none; }
+
+  #stage.tools-hidden .tools, #stage.tools-hidden .menu-button, #stage.tools-hidden .board-menu, #stage.tools-hidden .zoom, #stage.tools-hidden .backgrounds { display: none; }
+  #tools-hint { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); padding: 6px 12px; background: rgba(16, 40, 43, .88); color: #fff; border-radius: 6px; font-size: .84rem; white-space: nowrap; pointer-events: none; }
+
+  /* Below this width the centred toolbar would run under the menu button. */
+  @media (max-width: 1000px) {
+    .tools { left: 62px; max-width: calc(100% - 70px); transform: none; }
   }
-  /* The whiteboard fills the whole screen while presenting. */
-  body.presenting .topbar { display: none; }
+  @media (max-width: 640px) {
+    /* Phones have no Ctrl+. to bring hidden tools back. */
+    #present, #hide-tools, #text-format span { display: none; }
+  }
 </style>
 </head>
 <body>
 
-<header class="topbar">
-  <div class="wrap board-bar">
-    <h1>Teaching Board</h1>
-    <label for="board-select">Board</label>
-    <select id="board-select"></select>
-    <button class="btn secondary" id="new-board" type="button">New</button>
-    <button class="btn secondary" id="rename-board" type="button">Rename</button>
-    <button class="btn secondary" id="delete-board" type="button">Delete</button>
-    <button class="btn" id="present" type="button">Full screen</button>
-    <a href="index.html">Course page</a>
+<header class="topbar" id="library-bar" hidden>
+  <div class="wrap">
+    <h1>Teaching Boards</h1>
+    <div class="topbar-links"><a href="admin.html">Admin page</a></div>
   </div>
 </header>
 <p id="board-notice" role="alert" hidden></p>
-<main id="canvas"></main>
 
-<script>window.EXCALIDRAW_ASSET_PATH = new URL("vendor/excalidraw/", location.href).href;</script>
-<script src="vendor/excalidraw/react.production.min.js"></script>
-<script src="vendor/excalidraw/react-dom.production.min.js"></script>
-<script src="vendor/excalidraw/excalidraw.production.min.js"></script>
+<main id="library" hidden>
+  <div class="library-inner">
+    <div class="library-actions" id="library-back-row" hidden>
+      <button class="btn secondary" id="library-back" type="button">All folders</button>
+    </div>
+    <h2 id="library-title" tabindex="-1"></h2>
+    <p id="library-summary" aria-live="polite"></p>
+    <p id="library-problem" role="alert" hidden></p>
+    <div class="library-actions" id="library-actions"></div>
+    <ol class="card-list" id="library-list"></ol>
+  </div>
+</main>
+
+<main id="stage" hidden>
+  <canvas id="base" aria-hidden="true"></canvas>
+  <canvas id="live" role="img" aria-label="Drawing board"></canvas>
+  <div class="tools" id="tools" role="toolbar" aria-label="Drawing tools"></div>
+  <button class="menu-button" id="menu-button" type="button" aria-label="Menu" title="Menu" aria-expanded="false" aria-controls="board-menu">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <div class="board-menu" id="board-menu" hidden>
+    <h1 id="canvas-name"></h1>
+    <button class="btn secondary" id="to-folder" type="button">Back to folder</button>
+    <button class="btn secondary" id="rename-board" type="button">Rename canvas</button>
+    <button class="btn secondary" id="export" type="button">Export image</button>
+    <button class="btn secondary" id="hide-tools" type="button">Hide tools (Ctrl+.)</button>
+    <button class="btn" id="present" type="button">Full screen</button>
+    <a href="admin.html">Admin page</a>
+  </div>
+  <div class="zoom">
+    <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+    <button id="zoom-reset" type="button" title="Reset zoom (0)">100%</button>
+    <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+  </div>
+  <div class="backgrounds" id="backgrounds" role="group" aria-label="Board background"></div>
+  <div id="text-format" role="toolbar" aria-label="Text formatting" hidden>
+    <button id="format-bold" type="button" title="Bold (Ctrl+B)" aria-label="Bold" aria-pressed="false">B</button>
+    <button id="format-italic" type="button" title="Italic (Ctrl+I)" aria-label="Italic" aria-pressed="false"><i>I</i></button>
+    <button id="format-bullets" type="button" title="Bullet points (Ctrl+Shift+8)" aria-label="Bullet points" aria-pressed="false">• List</button>
+    <span>Click outside or press Esc to finish</span>
+  </div>
+  <p id="save-status" role="status"></p>
+  <div class="handwriting">
+    <p id="hand-status" role="status"></p>
+    <button id="hand-toggle" type="button" role="switch" aria-checked="false" title="Turn your pen writing into typed text after a short pause. Images of your writing go to Google Gemini.">
+      <span class="switch-track" aria-hidden="true"></span>
+      <span id="hand-toggle-label">Handwriting to text: Off</span>
+    </button>
+  </div>
+  <p id="tools-hint" role="status" hidden>Press Ctrl+. to show the tools</p>
+</main>
+
+<script src="config.js"></script>
+<script src="student-api.js"></script>
+<script src="admin-api.js"></script>
+<script src="progress-ring.js"></script>
 <script>
+// The drawings themselves are protected by the backend, which checks this login on every request.
+if (!getAdminToken()) location.replace("admin.html");
+
 const element = (id) => document.getElementById(id);
-const SAVE_DELAY_MS = 500;
-const DB_NAME = "teaching-board";
+const baseCanvas = element("base");
+const liveCanvas = element("live");
+const baseContext = baseCanvas.getContext("2d", { alpha: false });
+const liveContext = liveCanvas.getContext("2d");
+
+const TOOLS = [
+  { id: "select", label: "Select and move", key: "v", icon: '<path d="M5 3l14 8-6 2-3 6z"/>' },
+  { id: "hand", label: "Move the board", key: "h", icon: '<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>' },
+  { id: "pen", label: "Pen", key: "p", icon: '<path d="M4 20l1-5L16 4l4 4L9 19z"/>' },
+  { id: "line", label: "Line", key: "l", icon: '<path d="M5 19L19 5"/>' },
+  { id: "arrow", label: "Arrow", key: "a", icon: '<path d="M5 19L19 5M10 5h9v9"/>' },
+  { id: "rect", label: "Rectangle", key: "r", icon: '<rect x="4" y="6" width="16" height="12" rx="1"/>' },
+  { id: "ellipse", label: "Circle", key: "o", icon: '<ellipse cx="12" cy="12" rx="9" ry="7"/>' },
+  { id: "text", label: "Text", key: "t", icon: '<path d="M5 6V4h14v2M12 4v16M9 20h6"/>' },
+  { id: "eraser", label: "Eraser", key: "e", icon: '<path d="M8 20l-5-5L14 4l7 7-9 9zM8 20h13"/>' },
+];
+// Colours are stored by name, so a drawing stays readable when its background changes.
+const COLORS = [["Default ink", "ink"], ["Red", "red"], ["Blue", "blue"], ["Green", "green"]];
+const LIGHT_PAINT = { ink: "#1e1e1e", red: "#d92d20", blue: "#1570ef", green: "#079455", selection: "#0f766e" };
+const DARK_PAINT = { ink: "#ffffff", red: "#ff6b60", blue: "#5eaeff", green: "#3ddc97", selection: "#2dd4bf" };
+const BACKGROUNDS = {
+  white: { label: "White", fill: "#ffffff", paint: LIGHT_PAINT },
+  dark: { label: "Dark", fill: "#1e1e1e", paint: DARK_PAINT },
+  black: { label: "Black", fill: "#000000", paint: DARK_PAINT },
+};
+const SIZES = [["Thin", 2, 20, 6], ["Medium", 4, 28, 10], ["Thick", 8, 44, 15]];
+const SHAPE_TOOLS = ["line", "arrow", "rect", "ellipse"];
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 8;
+const ZOOM_EASE_MS = 90;
+const ZOOM_STOP_DISTANCE = 0.002;
+const WHEEL_ZOOM_SPEED = 0.006;
+const MAX_WHEEL_STEP = 40;
+const BUTTON_ZOOM_STEP = 1.25;
+// Boards fuller than this zoom a saved picture of themselves, then redraw sharply when the zoom stops.
+const PICTURE_ZOOM_SHAPES = 300;
+const MAX_SELECTION_BOXES = 100;
+const LOCKED_COLOR = "#f59e0b";
+const HINT_MS = 2500;
+const MAX_UNDO = 200;
+const SAVE_DELAY_MS = 300;
+const HIT_TOLERANCE = 8;
+const EXPORT_PADDING = 40;
+const MAX_EXPORT_SIZE = 8000;
+const FONT = "system-ui, sans-serif";
+const LINE_HEIGHT = 1.25;
+const HAND_FONT = "Caveat, cursive";
+const HAND_KEY = "board-handwriting";
+const HAND_PAUSE_MS = 1500;
+const HAND_IMAGE_HEIGHT = 96;
+const HAND_MAX_IMAGE_WIDTH = 2048;
+const HAND_INK_WIDTH = 3;
+const HAND_FONT_SCALE = 0.85;
+const HAND_MIN_FONT = 18;
+const HAND_MAX_FONT = 160;
+const HAND_WORD_GAP = 2;
+const HAND_NOTE_MS = 4000;
+const BULLET_INDENT = 1.2;
+const BULLET_MARK_OFFSET = 0.45;
+const SYNC_DELAY_MS = 3000;
+const SYNC_RETRY_MS = 30000;
+const DB_NAME = "weekend-board";
 const STORE = "boards";
 
-// Boards live in this browser's IndexedDB, because images can be too large for localStorage.
-// If it's blocked, memoryBoards keeps the current visit working and a notice explains the risk.
+// A board is a list of shapes that are never changed in place, so undo only has to keep old lists.
+let shapes = [];
+let undoStack = [];
+let redoStack = [];
+let view = { x: 0, y: 0, zoom: 1 };
+let tool = "pen";
+let color = COLORS[0][1];
+let background = "white";
+let zoomAnimation = null;
+const touches = new Map();
+let sizeIndex = 0;
+let selected = [];
+let gesture = null;
+let spaceHeld = false;
+let textEditor = null;
+let redrawQueued = false;
+let pixelRatio = 1;
+
 let database = null;
 const memoryBoards = new Map();
-let boards = [];
 let currentBoard = null;
-let excalidrawApi = null;
-let lastSaved = null;
 let saveTimer = null;
-let pendingSave = null;
-const root = ReactDOM.createRoot(element("canvas"));
+let savePending = false;
+let syncTimer = null;
+let syncRunning = false;
+let unsyncedCount = 0;
+let sessionEnded = false;
+let library = { folders: [], boards: [] };
+// Only the newest navigation may draw the page, in case an earlier request finishes later.
+let latestRoute = 0;
+
+/* Drawing */
+
+const shapeBounds = new WeakMap();
+
+function boundsOf(shape) {
+  let bounds = shapeBounds.get(shape);
+  if (bounds) return bounds;
+  const { points, type } = shape;
+  if (type === "text") {
+    bounds = [points[0], points[1], points[0] + shape.width, points[1] + shape.height];
+  } else {
+    bounds = [Infinity, Infinity, -Infinity, -Infinity];
+    for (let index = 0; index < points.length; index += 2) {
+      bounds[0] = Math.min(bounds[0], points[index]);
+      bounds[1] = Math.min(bounds[1], points[index + 1]);
+      bounds[2] = Math.max(bounds[2], points[index]);
+      bounds[3] = Math.max(bounds[3], points[index + 1]);
+    }
+    const margin = shape.size * (type === "arrow" ? 4 : 1);
+    bounds = [bounds[0] - margin, bounds[1] - margin, bounds[2] + margin, bounds[3] + margin];
+  }
+  shapeBounds.set(shape, bounds);
+  return bounds;
+}
+
+function tracePen(context, points) {
+  context.moveTo(points[0], points[1]);
+  // Curving through the midpoints keeps fast strokes smooth.
+  for (let index = 2; index < points.length - 2; index += 2) {
+    context.quadraticCurveTo(points[index], points[index + 1], (points[index] + points[index + 2]) / 2, (points[index + 1] + points[index + 3]) / 2);
+  }
+  context.lineTo(points[points.length - 2], points[points.length - 1]);
+}
+
+function drawShape(context, shape) {
+  const { type, points } = shape;
+  const paint = BACKGROUNDS[background].paint[shape.color];
+  context.strokeStyle = paint;
+  context.fillStyle = paint;
+  context.lineWidth = shape.size;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  if (type === "text") {
+    drawTextShape(context, shape);
+    return;
+  }
+  context.beginPath();
+  if (type === "pen") {
+    if (points.length === 2) {
+      context.arc(points[0], points[1], shape.size / 2, 0, Math.PI * 2);
+      context.fill();
+      return;
+    }
+    tracePen(context, points);
+  } else if (type === "rect") {
+    context.rect(points[0], points[1], points[2] - points[0], points[3] - points[1]);
+  } else if (type === "ellipse") {
+    context.ellipse((points[0] + points[2]) / 2, (points[1] + points[3]) / 2, Math.abs(points[2] - points[0]) / 2, Math.abs(points[3] - points[1]) / 2, 0, 0, Math.PI * 2);
+  } else {
+    context.moveTo(points[0], points[1]);
+    context.lineTo(points[2], points[3]);
+    if (type === "arrow") {
+      const angle = Math.atan2(points[3] - points[1], points[2] - points[0]);
+      const head = Math.max(12, shape.size * 4);
+      for (const side of [-0.45, 0.45]) {
+        context.moveTo(points[2], points[3]);
+        context.lineTo(points[2] - head * Math.cos(angle + side), points[3] - head * Math.sin(angle + side));
+      }
+    }
+  }
+  context.stroke();
+}
+
+function applyView(context) {
+  context.setTransform(pixelRatio * view.zoom, 0, 0, pixelRatio * view.zoom, pixelRatio * view.x, pixelRatio * view.y);
+}
+
+function fillBackground() {
+  baseContext.setTransform(1, 0, 0, 1, 0, 0);
+  baseContext.fillStyle = BACKGROUNDS[background].fill;
+  baseContext.fillRect(0, 0, baseCanvas.width, baseCanvas.height);
+}
+
+function renderBase(skip = null) {
+  fillBackground();
+  applyView(baseContext);
+  const left = -view.x / view.zoom;
+  const top = -view.y / view.zoom;
+  const right = left + liveCanvas.clientWidth / view.zoom;
+  const bottom = top + liveCanvas.clientHeight / view.zoom;
+  for (const shape of shapes) {
+    if (skip && skip.has(shape)) continue;
+    // Skipping what's off screen keeps moving around fast on a very full board.
+    const bounds = boundsOf(shape);
+    if (bounds[2] < left || bounds[0] > right || bounds[3] < top || bounds[1] > bottom) continue;
+    drawShape(baseContext, shape);
+  }
+}
+
+function clearLive() {
+  liveContext.setTransform(1, 0, 0, 1, 0, 0);
+  liveContext.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+  applyView(liveContext);
+}
+
+function unionBounds(list) {
+  const all = list.map(boundsOf);
+  return [
+    Math.min(...all.map((bounds) => bounds[0])),
+    Math.min(...all.map((bounds) => bounds[1])),
+    Math.max(...all.map((bounds) => bounds[2])),
+    Math.max(...all.map((bounds) => bounds[3])),
+  ];
+}
+
+function drawBox([left, top, right, bottom], strokeColor) {
+  liveContext.save();
+  liveContext.strokeStyle = strokeColor;
+  liveContext.lineWidth = 1.5 / view.zoom;
+  liveContext.setLineDash([6 / view.zoom, 4 / view.zoom]);
+  liveContext.strokeRect(left - 4, top - 4, right - left + 8, bottom - top + 8);
+  liveContext.restore();
+}
+
+function drawSelection(list) {
+  const paint = BACKGROUNDS[background].paint.selection;
+  // One box around a very large selection is quicker, and easier to read, than hundreds of boxes.
+  if (list.length > MAX_SELECTION_BOXES) return drawBox(unionBounds(list), paint);
+  for (const shape of list) drawBox(boundsOf(shape), shape.locked ? LOCKED_COLOR : paint);
+}
+
+function renderLive() {
+  clearLive();
+  if (selected.length && !gesture) drawSelection(selected);
+}
+
+function showZoomLevel() {
+  element("zoom-reset").textContent = `${Math.round(view.zoom * 100)}%`;
+}
+
+function renderAll() {
+  renderBase();
+  renderLive();
+  showZoomLevel();
+}
+
+function requestRender() {
+  if (redrawQueued) return;
+  redrawQueued = true;
+  requestAnimationFrame(() => {
+    redrawQueued = false;
+    renderAll();
+  });
+}
+
+function resizeCanvases() {
+  pixelRatio = window.devicePixelRatio || 1;
+  for (const canvas of [baseCanvas, liveCanvas]) {
+    canvas.width = Math.round(canvas.clientWidth * pixelRatio);
+    canvas.height = Math.round(canvas.clientHeight * pixelRatio);
+  }
+  renderAll();
+}
+
+/* Finding shapes under the pointer */
+
+function distanceToSegment(x, y, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lengthSquared = dx * dx + dy * dy;
+  const position = lengthSquared ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / lengthSquared)) : 0;
+  return Math.hypot(x - x1 - position * dx, y - y1 - position * dy);
+}
+
+function isNearShape(shape, x, y, tolerance) {
+  const { type, points } = shape;
+  const [left, top, right, bottom] = boundsOf(shape);
+  if (x < left - tolerance || x > right + tolerance || y < top - tolerance || y > bottom + tolerance) return false;
+  const reach = tolerance + shape.size / 2;
+  if (type === "text") return true;
+  if (type === "pen") {
+    if (points.length === 2) return Math.hypot(x - points[0], y - points[1]) <= reach;
+    for (let index = 0; index < points.length - 2; index += 2) {
+      if (distanceToSegment(x, y, points[index], points[index + 1], points[index + 2], points[index + 3]) <= reach) return true;
+    }
+    return false;
+  }
+  if (type === "line" || type === "arrow") return distanceToSegment(x, y, points[0], points[1], points[2], points[3]) <= reach;
+  if (type === "rect") {
+    const [x1, y1, x2, y2] = points;
+    return [[x1, y1, x2, y1], [x2, y1, x2, y2], [x2, y2, x1, y2], [x1, y2, x1, y1]]
+      .some((edge) => distanceToSegment(x, y, ...edge) <= reach);
+  }
+  const radiusX = Math.max(Math.abs(points[2] - points[0]) / 2, 1);
+  const radiusY = Math.max(Math.abs(points[3] - points[1]) / 2, 1);
+  const scaled = Math.hypot((x - (points[0] + points[2]) / 2) / radiusX, (y - (points[1] + points[3]) / 2) / radiusY);
+  return Math.abs(scaled - 1) * Math.min(radiusX, radiusY) <= reach;
+}
+
+function unlockedShapeAt(x, y) {
+  const tolerance = HIT_TOLERANCE / view.zoom;
+  for (let index = shapes.length - 1; index >= 0; index--) {
+    if (!shapes[index].locked && isNearShape(shapes[index], x, y, tolerance)) return shapes[index];
+  }
+  return null;
+}
+
+// Prefers unlocked shapes, so that what's drawn over locked content is easy to pick.
+function shapeAt(x, y) {
+  const unlocked = unlockedShapeAt(x, y);
+  if (unlocked) return unlocked;
+  const tolerance = HIT_TOLERANCE / view.zoom;
+  for (let index = shapes.length - 1; index >= 0; index--) {
+    if (isNearShape(shapes[index], x, y, tolerance)) return shapes[index];
+  }
+  return null;
+}
+
+/* Changing the board */
+
+function commit(nextShapes) {
+  undoStack.push(shapes);
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+  shapes = nextShapes;
+  scheduleSave();
+  updateControls();
+}
+
+function addShape(shape) {
+  commit([...shapes, shape]);
+  // Only the new shape needs drawing, so a very full board stays as fast as an empty one.
+  applyView(baseContext);
+  drawShape(baseContext, shape);
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(shapes);
+  shapes = undoStack.pop();
+  selected = [];
+  scheduleSave();
+  updateControls();
+  renderAll();
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(shapes);
+  shapes = redoStack.pop();
+  selected = [];
+  scheduleSave();
+  updateControls();
+  renderAll();
+}
+
+function deleteSelected() {
+  const targets = new Set(selected.filter((shape) => !shape.locked));
+  if (!targets.size) return;
+  selected = selected.filter((shape) => shape.locked);
+  commit(shapes.filter((shape) => !targets.has(shape)));
+  renderAll();
+}
+
+// Locked shapes stay, so a lesson's prepared content survives clearing what was drawn over it.
+function clearBoard() {
+  if (shapes.every((shape) => shape.locked)) return;
+  selected = selected.filter((shape) => shape.locked);
+  commit(shapes.filter((shape) => shape.locked));
+  renderAll();
+}
+
+function setSelection(list) {
+  selected = list;
+  renderLive();
+  updateControls();
+}
+
+function selectAll() {
+  closeTextEditor(true);
+  setTool("select");
+  setSelection(shapes.filter((shape) => !shape.locked));
+}
+
+function replaceShapes(targets, change) {
+  const replaced = new Map([...targets].map((shape) => [shape, change(shape)]));
+  selected = selected.map((shape) => replaced.get(shape) || shape);
+  commit(shapes.map((shape) => replaced.get(shape) || shape));
+}
+
+function lockSelected() {
+  const targets = selected.filter((shape) => !shape.locked);
+  if (!targets.length) return;
+  replaceShapes(targets, (shape) => ({ ...shape, locked: true }));
+  renderLive();
+}
+
+// Unlocks the selected locked shapes, or every locked shape when none are selected.
+function unlockShapes() {
+  const chosen = selected.filter((shape) => shape.locked);
+  const targets = chosen.length ? chosen : shapes.filter((shape) => shape.locked);
+  if (!targets.length) return;
+  replaceShapes(targets, ({ locked, ...shape }) => shape);
+  renderLive();
+}
+
+/* Pointer input */
+
+function toWorld(event) {
+  const box = liveCanvas.getBoundingClientRect();
+  return { x: (event.clientX - box.left - view.x) / view.zoom, y: (event.clientY - box.top - view.y) / view.zoom };
+}
+
+function roundPoint(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function drawPenSegment(points) {
+  const count = points.length;
+  liveContext.strokeStyle = BACKGROUNDS[background].paint[gesture.shape.color];
+  liveContext.lineWidth = gesture.shape.size;
+  liveContext.lineCap = "round";
+  liveContext.lineJoin = "round";
+  liveContext.beginPath();
+  if (count < 6) {
+    liveContext.moveTo(points[0], points[1]);
+    liveContext.lineTo(points[count - 2], points[count - 1]);
+  } else {
+    // Draws only the newest piece of the stroke, so long strokes never slow down.
+    liveContext.moveTo((points[count - 6] + points[count - 4]) / 2, (points[count - 5] + points[count - 3]) / 2);
+    liveContext.quadraticCurveTo(points[count - 4], points[count - 3], (points[count - 4] + points[count - 2]) / 2, (points[count - 3] + points[count - 1]) / 2);
+  }
+  liveContext.stroke();
+}
+
+function eraseAt(x, y) {
+  const hit = unlockedShapeAt(x, y);
+  if (!hit) return;
+  if (!gesture.erased) {
+    gesture.erased = true;
+    commit(shapes.filter((shape) => shape !== hit));
+  } else {
+    shapes = shapes.filter((shape) => shape !== hit);
+    scheduleSave();
+  }
+  renderBase();
+}
+
+function startSelecting(x, y, adding) {
+  const hit = shapeAt(x, y);
+  if (!hit) {
+    if (!adding) selected = [];
+    gesture = { kind: "marquee", startX: x, startY: y, endX: x, endY: y, adding };
+    clearLive();
+    if (selected.length) drawSelection(selected);
+  } else if (adding) {
+    selected = selected.includes(hit) ? selected.filter((shape) => shape !== hit) : [...selected, hit];
+    renderLive();
+  } else {
+    if (!selected.includes(hit)) selected = [hit];
+    const moving = selected.filter((shape) => !shape.locked);
+    // Locked shapes can be selected, so they can be unlocked, but they never move.
+    if (moving.length) gesture = { kind: "move", moving, startX: x, startY: y, moved: false };
+    renderLive();
+  }
+  updateControls();
+}
+
+function startGesture(event) {
+  finishZoom();
+  const { x, y } = toWorld(event);
+  const activeTool = spaceHeld || event.button === 1 ? "hand" : tool;
+  if (activeTool === "hand") {
+    gesture = { kind: "pan", startX: event.clientX, startY: event.clientY, viewX: view.x, viewY: view.y };
+    liveCanvas.classList.add("panning");
+  } else if (activeTool === "pen") {
+    clearTimeout(handTimer);
+    gesture = { kind: "pen", shape: { type: "pen", color, size: SIZES[sizeIndex][1], points: [roundPoint(x), roundPoint(y)] } };
+    clearLive();
+    liveContext.fillStyle = BACKGROUNDS[background].paint[color];
+    liveContext.beginPath();
+    liveContext.arc(x, y, SIZES[sizeIndex][1] / 2, 0, Math.PI * 2);
+    liveContext.fill();
+  } else if (SHAPE_TOOLS.includes(activeTool)) {
+    gesture = { kind: "shape", shape: { type: activeTool, color, size: SIZES[sizeIndex][1], points: [roundPoint(x), roundPoint(y), roundPoint(x), roundPoint(y)] } };
+  } else if (activeTool === "eraser") {
+    gesture = { kind: "erase", erased: false };
+    selected = [];
+    clearLive();
+    eraseAt(x, y);
+  } else if (activeTool === "select") {
+    startSelecting(x, y, event.shiftKey);
+  }
+  if (gesture) liveCanvas.setPointerCapture(event.pointerId);
+}
+
+function continueGesture(event) {
+  const { kind } = gesture;
+  if (kind === "pan") {
+    view.x = gesture.viewX + event.clientX - gesture.startX;
+    view.y = gesture.viewY + event.clientY - gesture.startY;
+    requestRender();
+    return;
+  }
+  // Fast pen movement arrives as several points grouped into one event.
+  const samples = event.getCoalescedEvents?.().length ? event.getCoalescedEvents() : [event];
+  for (const sample of samples) {
+    const { x, y } = toWorld(sample);
+    if (kind === "pen") {
+      const { points } = gesture.shape;
+      if (Math.hypot(x - points[points.length - 2], y - points[points.length - 1]) < 1 / view.zoom) continue;
+      points.push(roundPoint(x), roundPoint(y));
+      drawPenSegment(points);
+    } else if (kind === "erase") {
+      eraseAt(x, y);
+    }
+  }
+  const { x, y } = toWorld(event);
+  if (kind === "shape") {
+    gesture.shape.points[2] = roundPoint(x);
+    gesture.shape.points[3] = roundPoint(y);
+    clearLive();
+    drawShape(liveContext, gesture.shape);
+  } else if (kind === "move") {
+    if (!gesture.moved) {
+      gesture.moved = true;
+      renderBase(new Set(gesture.moving));
+    }
+    clearLive();
+    const moved = gesture.moving.map((shape) => translated(shape, x - gesture.startX, y - gesture.startY));
+    moved.forEach((shape) => drawShape(liveContext, shape));
+    drawSelection(moved);
+  } else if (kind === "marquee") {
+    gesture.endX = x;
+    gesture.endY = y;
+    clearLive();
+    if (selected.length) drawSelection(selected);
+    liveContext.save();
+    liveContext.fillStyle = "rgba(45, 212, 191, .12)";
+    liveContext.fillRect(gesture.startX, gesture.startY, x - gesture.startX, y - gesture.startY);
+    liveContext.restore();
+    drawBox([Math.min(gesture.startX, x) + 4, Math.min(gesture.startY, y) + 4, Math.max(gesture.startX, x) - 4, Math.max(gesture.startY, y) - 4], BACKGROUNDS[background].paint.selection);
+  }
+}
+
+function finishMarquee({ startX, startY, endX, endY, adding }) {
+  const left = Math.min(startX, endX);
+  const right = Math.max(startX, endX);
+  const top = Math.min(startY, endY);
+  const bottom = Math.max(startY, endY);
+  const inside = shapes.filter((shape) => {
+    const bounds = boundsOf(shape);
+    return !shape.locked && bounds[0] <= right && bounds[2] >= left && bounds[1] <= bottom && bounds[3] >= top;
+  });
+  setSelection(adding ? [...new Set([...selected, ...inside])] : inside);
+}
+
+function translated(shape, dx, dy) {
+  return { ...shape, points: shape.points.map((value, index) => roundPoint(value + (index % 2 ? dy : dx))) };
+}
+
+function finishGesture(event) {
+  const finished = gesture;
+  gesture = null;
+  liveCanvas.classList.remove("panning");
+  if (finished.kind === "pen") {
+    addShape(finished.shape);
+    clearLive();
+    noteHandwrittenStroke(finished.shape);
+  } else if (finished.kind === "shape") {
+    const { points } = finished.shape;
+    clearLive();
+    if (points[0] !== points[2] || points[1] !== points[3]) addShape(finished.shape);
+  } else if (finished.kind === "pan") {
+    scheduleSave();
+  } else if (finished.kind === "move") {
+    if (finished.moved) {
+      const { x, y } = toWorld(event);
+      replaceShapes(finished.moving, (shape) => translated(shape, x - finished.startX, y - finished.startY));
+      renderBase();
+    }
+    renderLive();
+  } else if (finished.kind === "marquee") {
+    finishMarquee(finished);
+  }
+}
+
+/* Two fingers on a touch screen pan and zoom the board */
+
+function touchPair() {
+  const [first, second] = touches.values();
+  return { centreX: (first.x + second.x) / 2, centreY: (first.y + second.y) / 2, distance: Math.max(Math.hypot(first.x - second.x, first.y - second.y), 1) };
+}
+
+function startPinch() {
+  // The first finger may have started a stroke, which the second finger cancels.
+  finishZoom();
+  closeTextEditor(true);
+  gesture = { kind: "pinch", ...touchPair() };
+  clearLive();
+}
+
+function continuePinch() {
+  const pair = touchPair();
+  const zoom = clampZoom(view.zoom * (pair.distance / gesture.distance));
+  const box = liveCanvas.getBoundingClientRect();
+  const worldX = (gesture.centreX - box.left - view.x) / view.zoom;
+  const worldY = (gesture.centreY - box.top - view.y) / view.zoom;
+  view = { zoom, x: pair.centreX - box.left - worldX * zoom, y: pair.centreY - box.top - worldY * zoom };
+  Object.assign(gesture, pair);
+  requestRender();
+}
+
+liveCanvas.addEventListener("pointerdown", (event) => {
+  // A click outside the menu only closes it, so it can't leave a stray mark.
+  if (isMenuOpen()) {
+    event.preventDefault();
+    closeMenu();
+    return;
+  }
+  if (event.pointerType === "touch") {
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (touches.size === 2) {
+      event.preventDefault();
+      liveCanvas.setPointerCapture(event.pointerId);
+      startPinch();
+      return;
+    }
+  }
+  if (event.button !== 0 && event.button !== 1) return;
+  event.preventDefault();
+  if (textEditor) {
+    closeTextEditor(true);
+    return;
+  }
+  if (gesture) return;
+  if (tool === "text" && event.button === 0 && !spaceHeld) {
+    const point = toWorld(event);
+    const hit = unlockedTextAt(point.x, point.y);
+    if (hit) editTextShape(hit);
+    else openTextEditor(point);
+    return;
+  }
+  startGesture(event);
+});
+liveCanvas.addEventListener("pointermove", (event) => {
+  if (touches.has(event.pointerId)) touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (gesture?.kind === "pinch") {
+    if (touches.size === 2) continuePinch();
+  } else if (gesture) {
+    continueGesture(event);
+  }
+});
+liveCanvas.addEventListener("pointerup", (event) => {
+  touches.delete(event.pointerId);
+  if (gesture?.kind === "pinch") {
+    if (touches.size < 2) {
+      gesture = null;
+      scheduleSave();
+    }
+  } else if (gesture) {
+    finishGesture(event);
+  }
+});
+liveCanvas.addEventListener("pointercancel", (event) => {
+  touches.delete(event.pointerId);
+  gesture = null;
+  liveCanvas.classList.remove("panning");
+  renderAll();
+});
+
+/* Text */
+
+// Text is stored as lines of formatted pieces: { bullet, runs: [{ text, bold, italic }] }.
+// Text saved before formatting existed has a plain "text" value instead.
+function textLines(shape) {
+  if (shape.lines) return shape.lines;
+  return shape.text.split("\n").map((text) => ({ bullet: false, runs: [{ text, bold: false, italic: false }] }));
+}
+
+function textFont(fontSize, { bold, italic }, family = FONT) {
+  return `${italic ? "italic " : ""}${bold ? "bold " : ""}${fontSize}px ${family}`;
+}
+
+function familyOf(shape) {
+  return shape.hand ? HAND_FONT : FONT;
+}
+
+function drawTextShape(context, shape) {
+  const { fontSize, points } = shape;
+  context.textBaseline = "top";
+  textLines(shape).forEach((line, index) => {
+    const y = points[1] + index * fontSize * LINE_HEIGHT;
+    let x = points[0];
+    if (line.bullet) {
+      context.font = textFont(fontSize, {}, familyOf(shape));
+      context.fillText("•", x + fontSize * BULLET_MARK_OFFSET, y);
+      x += fontSize * BULLET_INDENT;
+    }
+    for (const run of line.runs) {
+      context.font = textFont(fontSize, run, familyOf(shape));
+      context.fillText(run.text, x, y);
+      x += context.measureText(run.text).width;
+    }
+  });
+}
+
+function measureLines(lines, fontSize, family = FONT) {
+  let width = 0;
+  for (const line of lines) {
+    let lineWidth = line.bullet ? fontSize * BULLET_INDENT : 0;
+    for (const run of line.runs) {
+      liveContext.font = textFont(fontSize, run, family);
+      lineWidth += liveContext.measureText(run.text).width;
+    }
+    width = Math.max(width, lineWidth);
+  }
+  return { width: Math.ceil(width), height: Math.ceil(lines.length * fontSize * LINE_HEIGHT) };
+}
+
+function appendEditorLine(parent, line) {
+  for (const run of line.runs) {
+    let node = document.createTextNode(run.text);
+    if (run.italic) {
+      const wrapper = document.createElement("i");
+      wrapper.append(node);
+      node = wrapper;
+    }
+    if (run.bold) {
+      const wrapper = document.createElement("b");
+      wrapper.append(node);
+      node = wrapper;
+    }
+    parent.append(node);
+  }
+  if (!line.runs.some((run) => run.text)) parent.append(document.createElement("br"));
+}
+
+function fillEditor(input, lines) {
+  let list = null;
+  for (const line of lines) {
+    if (line.bullet) {
+      if (!list) {
+        list = document.createElement("ul");
+        input.append(list);
+      }
+      const item = document.createElement("li");
+      appendEditorLine(item, line);
+      list.append(item);
+    } else {
+      list = null;
+      const row = document.createElement("div");
+      appendEditorLine(row, line);
+      input.append(row);
+    }
+  }
+}
+
+// Reads what the browser's editor produced back into plain lines and formatted pieces.
+function readEditorLines(input) {
+  const lines = [];
+  let current = null;
+  const startLine = (bullet) => { current = { bullet, runs: [] }; };
+  const endLine = () => {
+    if (current) lines.push(current);
+    current = null;
+  };
+  const addText = (node) => {
+    const text = node.nodeValue.replace(/ /g, " ").replace(/[\r\n]/g, "");
+    if (!text) return;
+    const style = getComputedStyle(node.parentElement);
+    const bold = Number(style.fontWeight) >= 600;
+    const italic = style.fontStyle === "italic";
+    if (!current) startLine(false);
+    const last = current.runs[current.runs.length - 1];
+    if (last && last.bold === bold && last.italic === italic) last.text += text;
+    else current.runs.push({ text, bold, italic });
+  };
+  const walk = (parent, bullet) => {
+    for (const node of parent.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        addText(node);
+      } else if (node.nodeName === "BR") {
+        // A final line break only keeps an empty line open in the browser, unless the line really is empty.
+        if (!current) startLine(bullet);
+        if (node.nextSibling || !current.runs.length) endLine();
+      } else if (["DIV", "P", "LI", "UL", "OL"].includes(node.nodeName)) {
+        // A block that only wraps other blocks, such as a list inside a div, isn't a blank line.
+        if (current?.runs.length) endLine();
+        const inBullet = bullet || node.nodeName === "LI";
+        startLine(inBullet);
+        walk(node, inBullet);
+        if (current?.runs.length) endLine();
+        current = null;
+      } else {
+        walk(node, bullet);
+      }
+    }
+  };
+  walk(input, false);
+  endLine();
+  while (lines.length && !lines[lines.length - 1].runs.some((run) => run.text.trim())) lines.pop();
+  return lines;
+}
+
+function updateFormatButtons() {
+  if (!textEditor) return;
+  for (const [id, command] of [["format-bold", "bold"], ["format-italic", "italic"], ["format-bullets", "insertUnorderedList"]]) {
+    element(id).setAttribute("aria-pressed", String(document.queryCommandState(command)));
+  }
+}
+
+function applyFormat(command) {
+  if (!textEditor) return;
+  textEditor.input.focus();
+  document.execCommand(command);
+  placeFormatBar();
+  updateFormatButtons();
+}
+
+function placeFormatBar() {
+  const { input } = textEditor;
+  const bar = element("text-format");
+  bar.hidden = false;
+  const stage = element("stage").getBoundingClientRect();
+  const box = input.getBoundingClientRect();
+  const left = Math.max(8, Math.min(box.left - stage.left, stage.width - bar.offsetWidth - 8));
+  const above = box.top - stage.top - bar.offsetHeight - 8;
+  const top = above >= 60 ? above : box.bottom - stage.top + 8;
+  bar.style.left = `${left}px`;
+  bar.style.top = `${Math.min(top, stage.height - bar.offsetHeight - 8)}px`;
+}
+
+function selectEditorContents(input) {
+  const range = document.createRange();
+  range.selectNodeContents(input);
+  const selection = getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function openTextEditor(point, existing = null) {
+  const input = document.createElement("div");
+  const fontSize = existing ? existing.fontSize : SIZES[sizeIndex][2];
+  const textColor = existing ? existing.color : color;
+  input.id = "text-input";
+  input.contentEditable = "true";
+  input.spellcheck = false;
+  input.setAttribute("role", "textbox");
+  input.setAttribute("aria-multiline", "true");
+  input.setAttribute("aria-label", "Text for the board");
+  input.style.left = `${point.x * view.zoom + view.x}px`;
+  input.style.top = `${point.y * view.zoom + view.y}px`;
+  input.style.color = BACKGROUNDS[background].paint[textColor];
+  input.style.fontSize = `${fontSize * view.zoom}px`;
+  if (existing) input.style.fontFamily = familyOf(existing);
+  input.addEventListener("input", () => placeFormatBar());
+  input.addEventListener("keydown", (event) => {
+    const command = event.ctrlKey || event.metaKey;
+    // Ctrl+. still has to reach the page, while other keys belong to the text.
+    if (command && event.key === ".") return;
+    event.stopPropagation();
+    if (event.key === "Escape" || (command && event.key === "Enter")) {
+      event.preventDefault();
+      closeTextEditor(true);
+    } else if (event.key === "Tab") {
+      event.preventDefault();
+      document.execCommand("insertText", false, "    ");
+    } else if (command && event.shiftKey && event.code === "Digit8") {
+      event.preventDefault();
+      applyFormat("insertUnorderedList");
+    }
+  });
+  input.addEventListener("paste", (event) => {
+    event.preventDefault();
+    document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+  });
+  input.addEventListener("blur", () => {
+    // Switching to another window, such as for screen sharing, shouldn't end the editing.
+    if (document.hasFocus()) closeTextEditor(true);
+  });
+  if (existing) fillEditor(input, textLines(existing));
+  textEditor = { input, point, fontSize, color: textColor, existing };
+  element("stage").append(input);
+  if (existing) {
+    renderBase(new Set([existing]));
+    clearLive();
+  }
+  input.focus();
+  document.execCommand("defaultParagraphSeparator", false, "div");
+  if (existing) selectEditorContents(input);
+  placeFormatBar();
+  updateFormatButtons();
+}
+
+function finishEditedText(existing, lines) {
+  const size = measureLines(lines, existing.fontSize, familyOf(existing));
+  if (!lines.length) {
+    selected = selected.filter((shape) => shape !== existing);
+    commit(shapes.filter((shape) => shape !== existing));
+  } else if (JSON.stringify(lines) !== JSON.stringify(textLines(existing))) {
+    replaceShapes([existing], ({ text, ...shape }) => ({ ...shape, lines, ...size }));
+  }
+  renderAll();
+}
+
+function closeTextEditor(keep) {
+  if (!textEditor) return;
+  const { input, point, fontSize, color: textColor, existing } = textEditor;
+  textEditor = null;
+  const lines = readEditorLines(input);
+  input.remove();
+  element("text-format").hidden = true;
+  if (existing) {
+    if (keep) finishEditedText(existing, lines);
+    else renderAll();
+    return;
+  }
+  if (!keep || !lines.length) return;
+  addShape({
+    type: "text",
+    color: textColor,
+    size: 1,
+    fontSize,
+    lines,
+    points: [roundPoint(point.x), roundPoint(point.y)],
+    ...measureLines(lines, fontSize),
+  });
+}
+
+function unlockedTextAt(x, y) {
+  const hit = unlockedShapeAt(x, y);
+  return hit && hit.type === "text" ? hit : null;
+}
+
+function editTextShape(shape) {
+  setTool("select");
+  setSelection([shape]);
+  openTextEditor({ x: shape.points[0], y: shape.points[1] }, shape);
+}
+
+liveCanvas.addEventListener("dblclick", (event) => {
+  if (tool !== "select" || textEditor) return;
+  const { x, y } = toWorld(event);
+  const hit = unlockedTextAt(x, y);
+  if (hit) editTextShape(hit);
+});
+
+for (const [id, command] of [["format-bold", "bold"], ["format-italic", "italic"], ["format-bullets", "insertUnorderedList"]]) {
+  // Stopping the mouse press keeps the text selected, so the format applies to it.
+  element(id).addEventListener("mousedown", (event) => event.preventDefault());
+  element(id).addEventListener("click", () => applyFormat(command));
+}
+element("text-format").addEventListener("mousedown", (event) => event.preventDefault());
+document.addEventListener("selectionchange", updateFormatButtons);
+
+/* Handwriting to text */
+
+let handOn = false;
+let handTimer = null;
+let handNoteTimer = null;
+let pendingStrokes = [];
+// Answers from before the switch was turned off, or from another canvas, are ignored.
+let handGeneration = 0;
+let nextHandJob = 0;
+const handJobs = new Map();
+
+function setHandStatus(text, temporary = false) {
+  clearTimeout(handNoteTimer);
+  element("hand-status").textContent = text;
+  if (temporary) handNoteTimer = setTimeout(() => { element("hand-status").textContent = ""; }, HAND_NOTE_MS);
+}
+
+function loadHandFont() {
+  return Promise.all([document.fonts.load(`20px Caveat`), document.fonts.load(`bold 20px Caveat`)])
+    .then(() => { if (currentBoard) renderAll(); })
+    .catch(() => {});
+}
+
+function rememberHandChoice() {
+  try {
+    localStorage.setItem(HAND_KEY, handOn ? "on" : "off");
+  } catch (error) {
+    // The switch still works for this visit.
+  }
+}
+
+function setHandSwitch(on) {
+  handOn = on;
+  handGeneration++;
+  handJobs.clear();
+  forgetPendingHandwriting();
+  element("hand-toggle").setAttribute("aria-checked", String(on));
+  element("hand-toggle-label").textContent = `Handwriting to text: ${on ? "On" : "Off"}`;
+  rememberHandChoice();
+  if (!on) setHandStatus("");
+}
+
+function forgetPendingHandwriting() {
+  clearTimeout(handTimer);
+  pendingStrokes = [];
+}
+
+function noteHandwrittenStroke(stroke) {
+  if (!handOn) return;
+  pendingStrokes.push(stroke);
+  clearTimeout(handTimer);
+  handTimer = setTimeout(convertPendingHandwriting, HAND_PAUSE_MS);
+}
+
+function lineFrom(strokes) {
+  const [left, top, right, bottom] = unionBounds(strokes);
+  return { strokes, left, top, right, bottom };
+}
+
+// Finds rows first, tallest strokes leading, so that dots and commas join the letters they belong to.
+function groupIntoRows(strokes) {
+  const rows = [];
+  const byHeight = [...strokes].sort((first, second) => {
+    const [, firstTop, , firstBottom] = boundsOf(first);
+    const [, secondTop, , secondBottom] = boundsOf(second);
+    return (secondBottom - secondTop) - (firstBottom - firstTop);
+  });
+  for (const stroke of byHeight) {
+    const [, top, , bottom] = boundsOf(stroke);
+    const middle = (top + bottom) / 2;
+    const row = rows.find((item) => {
+      const reach = (item.bottom - item.top) * 0.3;
+      return middle >= item.top - reach && middle <= item.bottom + reach;
+    });
+    if (row) {
+      row.strokes.push(stroke);
+      row.top = Math.min(row.top, top);
+      row.bottom = Math.max(row.bottom, bottom);
+    } else {
+      rows.push({ strokes: [stroke], top, bottom });
+    }
+  }
+  return rows;
+}
+
+// Writing far apart on the same row stays as separate pieces of text, where it was written.
+function groupIntoLines(strokes) {
+  const lines = [];
+  for (const row of groupIntoRows(strokes)) {
+    const maxGap = (row.bottom - row.top) * HAND_WORD_GAP;
+    const leftToRight = [...row.strokes].sort((first, second) => boundsOf(first)[0] - boundsOf(second)[0]);
+    let piece = [];
+    let reachedRight = -Infinity;
+    for (const stroke of leftToRight) {
+      const [left, , right] = boundsOf(stroke);
+      if (piece.length && left - reachedRight > maxGap) {
+        lines.push(lineFrom(piece));
+        piece = [];
+        reachedRight = -Infinity;
+      }
+      piece.push(stroke);
+      reachedRight = Math.max(reachedRight, right);
+    }
+    lines.push(lineFrom(piece));
+  }
+  return lines;
+}
+
+// The reader expects dark writing on white, whatever colour or background the board uses.
+function handwritingImage({ strokes, left, right, top, bottom }) {
+  const padding = HAND_IMAGE_HEIGHT / 4;
+  const scale = Math.min(HAND_IMAGE_HEIGHT / Math.max(bottom - top, 1), (HAND_MAX_IMAGE_WIDTH - padding * 2) / Math.max(right - left, 1));
+  const canvas = Object.assign(document.createElement("canvas"), {
+    width: Math.ceil((right - left) * scale + padding * 2),
+    height: Math.ceil((bottom - top) * scale + padding * 2),
+  });
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#fff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.setTransform(scale, 0, 0, scale, padding - left * scale, padding - top * scale);
+  context.strokeStyle = "#000";
+  context.fillStyle = "#000";
+  context.lineWidth = HAND_INK_WIDTH / scale;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  for (const { points } of strokes) {
+    context.beginPath();
+    if (points.length === 2) {
+      context.arc(points[0], points[1], context.lineWidth / 2, 0, Math.PI * 2);
+      context.fill();
+    } else {
+      tracePen(context, points);
+      context.stroke();
+    }
+  }
+  return canvas.toDataURL("image/png");
+}
+
+function convertPendingHandwriting() {
+  if (!handOn || !pendingStrokes.length) return;
+  // Waits while the pen is down or text is being typed, so a word is never cut in half.
+  if (gesture || textEditor) {
+    handTimer = setTimeout(convertPendingHandwriting, HAND_PAUSE_MS);
+    return;
+  }
+  const strokes = pendingStrokes.filter((stroke) => shapes.includes(stroke));
+  pendingStrokes = [];
+  for (const line of groupIntoLines(strokes)) {
+    const id = nextHandJob++;
+    handJobs.set(id, { line, boardId: currentBoard.id, generation: handGeneration });
+    readHandwriting(id, line);
+  }
+  if (handJobs.size) setHandStatus("Reading your writing...");
+}
+
+function handProblemMessage(error) {
+  if (error === "nokey") return "Add your Gemini key first: Student admin > Set Gemini API key in the Google Sheet.";
+  if (error === "limit") return "Today's conversion limit is reached, so your writing was left as it is.";
+  if (error === "quota") return "Your Gemini key is over its usage limit, so your writing was left as it is. Check your plan and limits in Google AI Studio.";
+  if (error === "busy") return "Gemini is busy right now, so your writing was left as it is. Try again shortly.";
+  return "Couldn't convert that writing, so it was left as it is.";
+}
+
+async function readHandwriting(id, line) {
+  try {
+    const result = await callBackend({ action: "adminHandwriting", token: getAdminToken(), image: handwritingImage(line) });
+    if (result.error === "session") {
+      handleEndedSession(true);
+      finishHandJob(id, "", "session");
+    } else {
+      finishHandJob(id, result.ok ? result.text : "", result.error);
+    }
+  } catch (error) {
+    finishHandJob(id, "", "network");
+  }
+}
+
+function finishHandJob(id, text, problem) {
+  const job = handJobs.get(id);
+  handJobs.delete(id);
+  if (!handJobs.size) setHandStatus("");
+  if (!job || job.generation !== handGeneration || !currentBoard || job.boardId !== currentBoard.id) return;
+  const { line } = job;
+  if (problem === "session") return;
+  if (problem) return setHandStatus(handProblemMessage(problem), true);
+  const rows = text.split("\n").map((row) => row.trim()).filter(Boolean);
+  if (!rows.length) return setHandStatus("Couldn't read that writing, so it was left as it is.", true);
+  // The writing may have been erased, moved or undone while it was being read.
+  if (!line.strokes.every((stroke) => shapes.includes(stroke))) return;
+  const fontSize = Math.round(Math.min(HAND_MAX_FONT, Math.max(HAND_MIN_FONT, ((line.bottom - line.top) * HAND_FONT_SCALE) / rows.length)));
+  const lines = rows.map((row) => ({ bullet: false, runs: [{ text: row, bold: false, italic: false }] }));
+  const converted = {
+    type: "text",
+    hand: true,
+    color: line.strokes[0].color,
+    size: 1,
+    fontSize,
+    lines,
+    points: [roundPoint(line.left), roundPoint((line.top + line.bottom) / 2 - (rows.length * fontSize * LINE_HEIGHT) / 2)],
+    ...measureLines(lines, fontSize, HAND_FONT),
+  };
+  const removed = new Set(line.strokes);
+  selected = selected.filter((shape) => !removed.has(shape));
+  commit([...shapes.filter((shape) => !removed.has(shape)), converted]);
+  if (gesture) renderBase(gesture.kind === "move" ? new Set(gesture.moving) : null);
+  else renderAll();
+  setHandStatus("Converted. Press Ctrl+Z to bring your writing back.", true);
+}
+
+element("hand-toggle").addEventListener("click", async () => {
+  const on = !handOn;
+  setHandSwitch(on);
+  element("hand-toggle").blur();
+  if (!on) return;
+  setTool("pen");
+  loadHandFont();
+  setHandStatus("On. Write with the pen, then pause.", true);
+});
+
+/* Zoom */
+
+function clampZoom(zoom) {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+}
+
+function takeZoomPicture() {
+  if (shapes.length <= PICTURE_ZOOM_SHAPES) return null;
+  const canvas = Object.assign(document.createElement("canvas"), { width: baseCanvas.width, height: baseCanvas.height });
+  canvas.getContext("2d").drawImage(baseCanvas, 0, 0);
+  return { canvas, view: { ...view } };
+}
+
+function drawZoomPicture({ canvas, view: from }) {
+  const scale = view.zoom / from.zoom;
+  fillBackground();
+  baseContext.drawImage(canvas, (view.x - from.x * scale) * pixelRatio, (view.y - from.y * scale) * pixelRatio, canvas.width * scale, canvas.height * scale);
+}
+
+function zoomFrame(now) {
+  const animation = zoomAnimation;
+  if (!animation) return;
+  // The first frame's clock can read slightly earlier than the moment the zoom started.
+  const elapsed = Math.max(0, now - animation.lastFrame);
+  animation.lastFrame = now;
+  const ease = 1 - Math.exp(-elapsed / ZOOM_EASE_MS);
+  // Moving through the logarithm makes zooming in and zooming out feel equally fast.
+  const logZoom = Math.log(view.zoom);
+  const nextZoom = Math.exp(logZoom + (Math.log(animation.zoom) - logZoom) * ease);
+  let settled = Math.abs(Math.log(animation.zoom) - Math.log(nextZoom)) < ZOOM_STOP_DISTANCE;
+  if (animation.anchor) {
+    const { x, y } = animation.anchor;
+    const zoom = settled ? animation.zoom : nextZoom;
+    view.x = x - ((x - view.x) / view.zoom) * zoom;
+    view.y = y - ((y - view.y) / view.zoom) * zoom;
+    view.zoom = zoom;
+  } else {
+    view.x += (animation.x - view.x) * ease;
+    view.y += (animation.y - view.y) * ease;
+    settled = settled && Math.hypot(animation.x - view.x, animation.y - view.y) < 0.5;
+    view.zoom = settled ? animation.zoom : nextZoom;
+    if (settled) {
+      view.x = animation.x;
+      view.y = animation.y;
+    }
+  }
+  if (settled) {
+    zoomAnimation = null;
+    renderAll();
+    scheduleSave();
+    return;
+  }
+  if (animation.picture) {
+    drawZoomPicture(animation.picture);
+    clearLive();
+    showZoomLevel();
+  } else {
+    renderAll();
+  }
+  animation.frame = requestAnimationFrame(zoomFrame);
+}
+
+function startZoomAnimation(target) {
+  closeTextEditor(true);
+  if (zoomAnimation) {
+    cancelAnimationFrame(zoomAnimation.frame);
+    target.picture = zoomAnimation.picture;
+  } else {
+    target.picture = takeZoomPicture();
+  }
+  target.lastFrame = performance.now();
+  zoomAnimation = target;
+  target.frame = requestAnimationFrame(zoomFrame);
+}
+
+function zoomAround(screenX, screenY, factor) {
+  // Repeated wheel steps add to where the zoom is heading, not to where it has reached so far.
+  const heading = zoomAnimation ? zoomAnimation.zoom : view.zoom;
+  startZoomAnimation({ zoom: clampZoom(heading * factor), anchor: { x: screenX, y: screenY } });
+}
+
+function zoomAtCentre(factor) {
+  zoomAround(liveCanvas.clientWidth / 2, liveCanvas.clientHeight / 2, factor);
+}
+
+function resetView() {
+  startZoomAnimation({ zoom: 1, x: 0, y: 0, anchor: null });
+}
+
+// Jumps to where the zoom is heading, so that a new stroke lands exactly where it's drawn.
+function finishZoom() {
+  if (!zoomAnimation) return;
+  const animation = zoomAnimation;
+  cancelAnimationFrame(animation.frame);
+  zoomAnimation = null;
+  if (animation.anchor) {
+    const { x, y } = animation.anchor;
+    view.x = x - ((x - view.x) / view.zoom) * animation.zoom;
+    view.y = y - ((y - view.y) / view.zoom) * animation.zoom;
+    view.zoom = animation.zoom;
+  } else {
+    view = { x: animation.x, y: animation.y, zoom: animation.zoom };
+  }
+  renderAll();
+  scheduleSave();
+}
+
+liveCanvas.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  if (event.ctrlKey || event.metaKey) {
+    const box = liveCanvas.getBoundingClientRect();
+    const step = Math.max(-MAX_WHEEL_STEP, Math.min(MAX_WHEEL_STEP, event.deltaY));
+    zoomAround(event.clientX - box.left, event.clientY - box.top, Math.exp(-step * WHEEL_ZOOM_SPEED));
+  } else {
+    finishZoom();
+    view.x -= event.deltaX;
+    view.y -= event.deltaY;
+    requestRender();
+    scheduleSave();
+  }
+}, { passive: false });
+element("zoom-in").addEventListener("click", () => zoomAtCentre(BUTTON_ZOOM_STEP));
+element("zoom-out").addEventListener("click", () => zoomAtCentre(1 / BUTTON_ZOOM_STEP));
+element("zoom-reset").addEventListener("click", resetView);
+
+/* Toolbar and keyboard */
+
+function setTool(id) {
+  closeTextEditor(true);
+  tool = id;
+  if (id !== "select") selected = [];
+  liveCanvas.dataset.tool = id;
+  renderLive();
+  updateControls();
+}
+
+function makeToolButton(label, content, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.innerHTML = content;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function separator() {
+  return Object.assign(document.createElement("span"), { className: "gap" });
+}
+
+const controlButtons = { tools: {}, colors: {}, sizes: [], backgrounds: {} };
+
+function buildToolbar() {
+  const bar = element("tools");
+  for (const { id, label, key, icon } of TOOLS) {
+    controlButtons.tools[id] = makeToolButton(`${label} (${key.toUpperCase()})`, `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>`, () => setTool(id));
+    bar.append(controlButtons.tools[id]);
+  }
+  bar.append(separator());
+  for (const [name, value] of COLORS) {
+    controlButtons.colors[value] = makeToolButton(name, '<span class="swatch"></span>', () => {
+      color = value;
+      updateControls();
+    });
+    bar.append(controlButtons.colors[value]);
+  }
+  bar.append(separator());
+  SIZES.forEach(([name, , , dot], index) => {
+    controlButtons.sizes[index] = makeToolButton(name, `<span class="dot" style="width:${dot}px;height:${dot}px"></span>`, () => {
+      sizeIndex = index;
+      updateControls();
+    });
+    bar.append(controlButtons.sizes[index]);
+  });
+  bar.append(separator());
+  controlButtons.undo = makeToolButton("Undo (Ctrl+Z)", '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 5 5"/></svg>', undo);
+  controlButtons.redo = makeToolButton("Redo (Ctrl+Shift+Z)", '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l5 5-5 5M20 12H9a5 5 0 0 0-5 5"/></svg>', redo);
+  controlButtons.clear = makeToolButton("Clear everything that isn't locked", '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>', clearBoard);
+  controlButtons.lock = makeToolButton("Lock selected (Ctrl+Shift+L)", '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>', lockSelected);
+  controlButtons.unlock = makeToolButton("Unlock", '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>', unlockShapes);
+  bar.append(controlButtons.undo, controlButtons.redo, controlButtons.clear, separator(), controlButtons.lock, controlButtons.unlock);
+
+  for (const [id, { label }] of Object.entries(BACKGROUNDS)) {
+    controlButtons.backgrounds[id] = Object.assign(document.createElement("button"), { type: "button", textContent: label });
+    controlButtons.backgrounds[id].addEventListener("click", () => setBackground(id));
+    element("backgrounds").append(controlButtons.backgrounds[id]);
+  }
+}
+
+function setBackground(id) {
+  background = id;
+  element("stage").style.background = BACKGROUNDS[id].fill;
+  scheduleSave();
+  updateControls();
+  renderAll();
+}
+
+function updateControls() {
+  for (const [id, button] of Object.entries(controlButtons.tools)) button.setAttribute("aria-pressed", String(id === tool));
+  for (const [value, button] of Object.entries(controlButtons.colors)) {
+    button.setAttribute("aria-pressed", String(value === color));
+    button.firstChild.style.setProperty("--swatch", BACKGROUNDS[background].paint[value]);
+  }
+  for (const [id, button] of Object.entries(controlButtons.backgrounds)) button.setAttribute("aria-pressed", String(id === background));
+  controlButtons.sizes.forEach((button, index) => button.setAttribute("aria-pressed", String(index === sizeIndex)));
+  controlButtons.undo.disabled = !undoStack.length;
+  controlButtons.redo.disabled = !redoStack.length;
+  controlButtons.clear.disabled = shapes.every((shape) => shape.locked);
+  controlButtons.lock.disabled = !selected.some((shape) => !shape.locked);
+  const lockedCount = shapes.filter((shape) => shape.locked).length;
+  const selectedLocked = selected.filter((shape) => shape.locked).length;
+  controlButtons.unlock.disabled = !lockedCount;
+  const unlockLabel = selectedLocked ? `Unlock selected (${selectedLocked})` : `Unlock all (${lockedCount} locked)`;
+  controlButtons.unlock.title = unlockLabel;
+  controlButtons.unlock.setAttribute("aria-label", unlockLabel);
+}
+
+document.addEventListener("keydown", (event) => {
+  if (!currentBoard) return;
+  const key = event.key.toLowerCase();
+  const command = event.ctrlKey || event.metaKey;
+  if (command && key === ".") {
+    event.preventDefault();
+    toggleTools();
+    return;
+  }
+  if (key === "escape" && isMenuOpen()) {
+    closeMenu(true);
+    return;
+  }
+  if (event.target.matches?.("input, textarea, [contenteditable]")) return;
+  // The board list keeps its own keys, apart from Ctrl+A, which would otherwise select the whole page.
+  if (event.target.matches?.("select") && !(command && key === "a")) return;
+  if (command && event.shiftKey && key === "l") {
+    event.preventDefault();
+    if (selected.some((shape) => !shape.locked)) lockSelected();
+    else unlockShapes();
+  } else if (command && key === "a") {
+    event.preventDefault();
+    selectAll();
+  } else if (command && key === "z") {
+    event.preventDefault();
+    if (event.shiftKey) redo();
+    else undo();
+  } else if (command && key === "y") {
+    event.preventDefault();
+    redo();
+  } else if (command) {
+    return;
+  } else if (key === " ") {
+    event.preventDefault();
+    spaceHeld = true;
+    liveCanvas.classList.add("panning");
+  } else if (key === "delete" || key === "backspace") {
+    deleteSelected();
+  } else if (key === "escape") {
+    setSelection([]);
+  } else if (key === "=" || key === "+") {
+    zoomAtCentre(BUTTON_ZOOM_STEP);
+  } else if (key === "-") {
+    zoomAtCentre(1 / BUTTON_ZOOM_STEP);
+  } else if (key === "0") {
+    resetView();
+  } else {
+    const match = TOOLS.find((item) => item.key === key);
+    if (match) setTool(match.id);
+  }
+});
+document.addEventListener("keyup", (event) => {
+  if (event.key !== " ") return;
+  spaceHeld = false;
+  if (!gesture) liveCanvas.classList.remove("panning");
+});
+
+/* Menu */
+
+function isMenuOpen() {
+  return !element("board-menu").hidden;
+}
+
+function openMenu() {
+  closeTextEditor(true);
+  element("board-menu").hidden = false;
+  element("menu-button").setAttribute("aria-expanded", "true");
+  element("to-folder").focus();
+}
+
+function closeMenu(returnFocus = false) {
+  element("board-menu").hidden = true;
+  element("menu-button").setAttribute("aria-expanded", "false");
+  if (returnFocus) element("menu-button").focus();
+}
+
+// Hiding the tools leaves only the board on screen. Drawing and keyboard shortcuts keep working.
+let hintTimer = null;
+
+function toggleTools() {
+  const hidden = element("stage").classList.toggle("tools-hidden");
+  clearTimeout(hintTimer);
+  element("tools-hint").hidden = !hidden;
+  if (hidden) {
+    closeMenu();
+    hintTimer = setTimeout(() => { element("tools-hint").hidden = true; }, HINT_MS);
+    if (!textEditor) document.activeElement?.blur();
+  }
+}
+
+element("hide-tools").addEventListener("click", toggleTools);
+
+element("menu-button").addEventListener("click", () => {
+  if (isMenuOpen()) closeMenu();
+  else openMenu();
+});
+
+/* Saving: every change goes to this computer at once, then to the Google Sheet in the background */
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: "id" });
+    const request = indexedDB.open(DB_NAME, 2);
+    request.onupgradeneeded = () => {
+      if (request.result.objectStoreNames.contains(STORE)) request.result.deleteObjectStore(STORE);
+      request.result.createObjectStore(STORE, { keyPath: "id" });
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -86,193 +1674,584 @@ function runStore(mode, work) {
   });
 }
 
-function showNotice(message) {
-  element("board-notice").textContent = message;
-  element("board-notice").hidden = false;
+function showNotice(message, actions = []) {
+  const notice = element("board-notice");
+  notice.textContent = message;
+  for (const { label, action } of actions) {
+    const button = Object.assign(document.createElement("button"), { type: "button", className: "notice-button", textContent: label });
+    button.addEventListener("click", action);
+    notice.append(button);
+  }
+  notice.hidden = false;
+  if (currentBoard) resizeCanvases();
 }
 
-async function readBoards() {
-  if (!database) return [...memoryBoards.values()];
-  return runStore("readonly", (store) => store.getAll());
+function hideNotice() {
+  element("board-notice").hidden = true;
 }
 
-async function writeBoard(board) {
-  memoryBoards.set(board.id, board);
+async function readLocal(id) {
+  if (!database) return memoryBoards.get(id) || null;
+  return (await runStore("readonly", (store) => store.get(id))) || null;
+}
+
+async function writeLocal(record) {
+  memoryBoards.set(record.id, record);
   if (!database) return;
   try {
-    await runStore("readwrite", (store) => store.put(board));
+    await runStore("readwrite", (store) => store.put(record));
   } catch (error) {
-    showNotice("We couldn't save this board, possibly because this browser's storage is full. Use Export image from the menu to keep a copy.");
+    showNotice("This computer's browser storage is full, so the newest changes may not be kept here. They'll still try to save online.");
   }
 }
 
-async function removeBoard(id) {
+async function removeLocal(id) {
   memoryBoards.delete(id);
   if (database) await runStore("readwrite", (store) => store.delete(id));
 }
 
-function createBoard(name) {
-  return { id: crypto.randomUUID(), name, updatedAt: Date.now(), elements: [], appState: {}, files: {} };
+async function allLocal() {
+  if (!database) return [...memoryBoards.values()];
+  return runStore("readonly", (store) => store.getAll());
 }
 
-function nextBoardName() {
-  return `Board ${boards.length + 1}`;
-}
-
-function changeSignature(elements, appState, files) {
-  return [ExcalidrawLib.getSceneVersion(elements), appState.viewBackgroundColor, appState.theme, appState.gridSize, Object.keys(files).length].join("|");
-}
-
-function snapshot(board, elements, appState, files) {
-  const kept = elements.filter((item) => !item.isDeleted);
-  const usedFiles = new Set(kept.map((item) => item.fileId).filter(Boolean));
-  return {
-    ...board,
-    updatedAt: Date.now(),
-    elements: kept,
-    appState: {
-      viewBackgroundColor: appState.viewBackgroundColor,
-      theme: appState.theme,
-      gridSize: appState.gridSize,
-      scrollX: appState.scrollX,
-      scrollY: appState.scrollY,
-      zoom: appState.zoom,
-    },
-    files: Object.fromEntries(Object.entries(files).filter(([id]) => usedFiles.has(id))),
-  };
-}
-
-function scheduleSave(boardId, elements, appState, files) {
-  if (!currentBoard || currentBoard.id !== boardId) return;
-  const signature = changeSignature(elements, appState, files);
-  // The first change only reports the board that was just opened.
-  if (lastSaved === null) lastSaved = signature;
-  if (signature === lastSaved) return;
-  lastSaved = signature;
-  pendingSave = () => {
-    currentBoard = snapshot(currentBoard, elements, appState, files);
-    boards = boards.map((board) => (board.id === currentBoard.id ? currentBoard : board));
-    return writeBoard(currentBoard);
-  };
+function scheduleSave() {
+  if (!currentBoard) return;
+  savePending = true;
+  setSaveStatus("Saving...");
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, SAVE_DELAY_MS);
 }
 
-function flushSave() {
+async function flushSave() {
   clearTimeout(saveTimer);
-  const save = pendingSave;
-  pendingSave = null;
-  return save ? save() : Promise.resolve();
+  if (!savePending || !currentBoard) return;
+  savePending = false;
+  currentBoard = {
+    ...currentBoard,
+    shapes,
+    background,
+    view: { ...view },
+    dirty: true,
+    conflict: false,
+    revision: currentBoard.revision + 1,
+  };
+  await writeLocal(currentBoard);
+  syncSoon(SYNC_DELAY_MS);
 }
 
-function renderBoardList() {
-  const sorted = [...boards].sort((first, second) => first.name.localeCompare(second.name, undefined, { numeric: true }));
-  element("board-select").replaceChildren(...sorted.map((board) => Object.assign(document.createElement("option"), {
-    value: board.id, textContent: board.name, selected: board.id === currentBoard.id,
-  })));
+function syncSoon(delay) {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncAll, delay);
 }
 
-// Excalidraw's default menu, without its links to social media.
-function boardMenu() {
-  const { MainMenu } = ExcalidrawLib;
-  const { DefaultItems } = MainMenu;
-  return React.createElement(MainMenu, null,
-    React.createElement(DefaultItems.LoadScene),
-    React.createElement(DefaultItems.SaveToActiveFile),
-    React.createElement(DefaultItems.Export),
-    React.createElement(DefaultItems.SaveAsImage),
-    React.createElement(DefaultItems.Help),
-    React.createElement(DefaultItems.ClearCanvas),
-    React.createElement(MainMenu.Separator),
-    React.createElement(DefaultItems.ToggleTheme),
-    React.createElement(DefaultItems.ChangeCanvasBackground));
+function setSaveStatus(text) {
+  element("save-status").textContent = text;
 }
 
-function showBoard(board) {
-  currentBoard = board;
-  lastSaved = null;
-  renderBoardList();
-  // A new key gives each board its own canvas and its own undo history.
-  root.render(React.createElement(ExcalidrawLib.Excalidraw, {
-    key: board.id,
-    // Shortcuts keep working after a click on the Teaching Board buttons.
-    handleKeyboardGlobally: true,
-    excalidrawAPI: (api) => { excalidrawApi = api; },
-    initialData: { elements: board.elements, appState: board.appState, files: board.files, scrollToContent: false },
-    onChange: (elements, appState, files) => scheduleSave(board.id, elements, appState, files),
-  }, boardMenu()));
+function refreshSaveStatus() {
+  if (!currentBoard) return;
+  if (currentBoard.conflict) return setSaveStatus("Not saved online. Choose a version above.");
+  if (savePending || (currentBoard.dirty && syncRunning)) return setSaveStatus("Saving...");
+  if (sessionEnded && currentBoard.dirty) return setSaveStatus("Saved on this computer. Log in again to save online.");
+  if (currentBoard.dirty) return setSaveStatus("Saved on this computer. Will save online when it can.");
+  setSaveStatus("Saved");
 }
 
-async function switchTo(board) {
+function boardData(record) {
+  return JSON.stringify({ shapes: record.shapes, view: record.view, background: record.background });
+}
+
+// Sends one canvas to the sheet. Returns false when the connection or session means it's time to stop.
+async function uploadRecord(record, force) {
+  let result;
+  try {
+    result = await callBackend({
+      action: "adminBoardSave",
+      token: getAdminToken(),
+      id: record.id,
+      data: boardData(record),
+      baseUpdatedAt: force ? "" : record.baseUpdatedAt,
+    });
+  } catch (error) {
+    return false;
+  }
+  if (result.error === "session") {
+    sessionEnded = true;
+    showNotice("Your admin session has ended. Your work is safe on this computer.", [{ label: "Log in again", action: () => location.assign("admin.html") }]);
+    return false;
+  }
+  if (result.error === "conflict") {
+    await markConflict(record);
+    return true;
+  }
+  if (result.error === "toolarge") {
+    if (currentBoard?.id === record.id) showNotice("This canvas is too large to save online, so it's only saved on this computer. Use Export image to keep a copy.");
+    await writeLocal({ ...record, dirty: false, tooLarge: true });
+    return true;
+  }
+  if (result.error === "notfound") {
+    await removeLocal(record.id);
+    return true;
+  }
+  if (!result.ok) return false;
+
+  // Keeps the canvas marked unsaved if it changed while this upload was on its way.
+  const latest = (currentBoard?.id === record.id ? currentBoard : await readLocal(record.id)) || record;
+  const updated = { ...latest, baseUpdatedAt: result.updatedAt, dirty: latest.revision !== record.revision, conflict: false };
+  if (currentBoard?.id === record.id) currentBoard = updated;
+  await writeLocal(updated);
+  return true;
+}
+
+async function markConflict(record) {
+  await writeLocal({ ...record, conflict: true });
+  if (currentBoard?.id !== record.id) return;
+  currentBoard = { ...currentBoard, conflict: true };
+  refreshSaveStatus();
+  showNotice("This canvas was changed on another computer, so your changes here haven't been saved online.", [
+    { label: "Keep this version", action: keepThisVersion },
+    { label: "Load the other version", action: loadOtherVersion },
+  ]);
+}
+
+async function keepThisVersion() {
+  hideNotice();
   await flushSave();
-  showBoard(boards.find(({ id }) => id === board.id) || board);
+  if (await uploadRecord(currentBoard, true)) refreshSaveStatus();
 }
 
-element("board-select").addEventListener("change", (event) => {
-  switchTo(boards.find(({ id }) => id === event.target.value));
-});
+async function loadOtherVersion() {
+  hideNotice();
+  clearTimeout(saveTimer);
+  savePending = false;
+  const { id } = currentBoard;
+  currentBoard = null;
+  await removeLocal(id);
+  route();
+}
 
-element("new-board").addEventListener("click", async () => {
-  const name = prompt("Name for the new board", nextBoardName());
-  if (name === null) return;
+async function syncAll() {
+  if (syncRunning || sessionEnded) return;
+  syncRunning = true;
+  refreshSaveStatus();
+  let keepGoing = true;
+  try {
+    const waiting = (await allLocal()).filter((record) => record.dirty && !record.conflict);
+    for (const stored of waiting) {
+      const record = currentBoard?.id === stored.id ? currentBoard : stored;
+      keepGoing = await uploadRecord(record, false);
+      if (!keepGoing) break;
+    }
+    const remaining = (await allLocal()).filter((record) => record.dirty && !record.conflict);
+    unsyncedCount = remaining.length;
+    if (remaining.length && !sessionEnded) syncSoon(keepGoing ? SYNC_DELAY_MS : SYNC_RETRY_MS);
+  } finally {
+    syncRunning = false;
+    refreshSaveStatus();
+  }
+}
+
+/* Opening a canvas */
+
+function applyBoard(record) {
+  closeTextEditor(false);
+  if (zoomAnimation) cancelAnimationFrame(zoomAnimation.frame);
+  zoomAnimation = null;
+  currentBoard = record;
+  shapes = record.shapes;
+  view = { ...record.view };
+  background = record.background;
+  element("stage").style.background = BACKGROUNDS[background].fill;
+  undoStack = [];
+  redoStack = [];
+  selected = [];
+  gesture = null;
+  element("canvas-name").textContent = record.name;
+  forgetPendingHandwriting();
+  if (shapes.some((shape) => shape.hand)) loadHandFont();
+  updateControls();
+  resizeCanvases();
+  refreshSaveStatus();
+  performance.mark("board-ready");
+}
+
+function recordFromServer(board) {
+  const data = board.data ? JSON.parse(board.data) : {};
+  return {
+    id: board.id,
+    folderId: board.folderId,
+    name: board.name,
+    shapes: data.shapes || [],
+    view: data.view || { x: 0, y: 0, zoom: 1 },
+    background: data.background || "white",
+    baseUpdatedAt: board.updatedAt,
+    dirty: false,
+    conflict: false,
+    revision: 0,
+  };
+}
+
+function showCanvasScreen() {
+  element("library").hidden = true;
+  element("library-bar").hidden = true;
+  element("stage").hidden = false;
+}
+
+async function openCanvas(id, routeNumber) {
+  const local = await readLocal(id);
+  if (routeNumber !== latestRoute) return;
+  if (local) {
+    showCanvasScreen();
+    applyBoard(local);
+    // A disagreement between two computers stays unresolved until the admin chooses a version.
+    if (local.conflict) await markConflict(local);
+  } else {
+    showLibraryScreen("Opening canvas...", "");
+  }
+
+  let result;
+  try {
+    result = await callBackend({ action: "adminBoardLoad", token: getAdminToken(), id });
+  } catch (error) {
+    if (!local && routeNumber === latestRoute) showLibraryProblem("We couldn't open this canvas. Please check your connection and try again.");
+    return;
+  }
+  if (routeNumber !== latestRoute) return;
+  if (result.error === "session") return handleEndedSession(Boolean(local));
+  if (result.error === "notfound") {
+    await removeLocal(id);
+    currentBoard = null;
+    location.hash = "";
+    return;
+  }
+  if (!result.ok) {
+    if (!local) showLibraryProblem("We couldn't open this canvas. Please try again.");
+    return;
+  }
+
+  const fresh = recordFromServer(result.board);
+  if (!local) {
+    await writeLocal(fresh);
+    if (routeNumber !== latestRoute) return;
+    showCanvasScreen();
+    applyBoard(fresh);
+  } else if (currentBoard?.id === id) {
+    currentBoard = { ...currentBoard, name: fresh.name, folderId: fresh.folderId };
+    element("canvas-name").textContent = fresh.name;
+    if (fresh.baseUpdatedAt !== currentBoard.baseUpdatedAt && !currentBoard.dirty && !savePending) {
+      // Another computer saved a newer copy, and this one has nothing unsaved, so the newer copy is safe to show.
+      await writeLocal(fresh);
+      applyBoard(fresh);
+    } else {
+      await writeLocal(currentBoard);
+    }
+  }
+}
+
+function handleEndedSession(hasLocalCopy) {
+  sessionEnded = true;
+  if (!hasLocalCopy) {
+    clearAdminToken();
+    location.replace("admin.html");
+    return;
+  }
+  refreshSaveStatus();
+  showNotice("Your admin session has ended. Your work is safe on this computer.", [{ label: "Log in again", action: () => location.assign("admin.html") }]);
+}
+
+/* Folders and canvases */
+
+function showLibraryScreen(title, summary) {
+  currentBoard = null;
+  closeMenu();
+  hideNotice();
+  element("stage").hidden = true;
+  element("library-bar").hidden = false;
+  element("library").hidden = false;
+  element("library-title").textContent = title;
+  element("library-summary").textContent = summary;
+  element("library-problem").hidden = true;
+  element("library-actions").replaceChildren();
+  element("library-list").replaceChildren();
+  element("library-back-row").hidden = true;
+}
+
+function showLibraryProblem(message) {
+  element("library-summary").textContent = "";
+  element("library-problem").textContent = message;
+  element("library-problem").hidden = false;
+}
+
+async function callLibrary(params) {
+  try {
+    const result = await callBackend({ ...params, token: getAdminToken() });
+    if (result.error === "session") {
+      handleEndedSession(false);
+      return null;
+    }
+    return result;
+  } catch (error) {
+    showLibraryProblem("We couldn't reach the server. Please check your connection and try again.");
+    return null;
+  }
+}
+
+function libraryButton(label, action, secondary = true) {
+  const button = Object.assign(document.createElement("button"), { type: "button", className: `btn${secondary ? " secondary" : ""}`, textContent: label });
+  button.addEventListener("click", action);
+  return button;
+}
+
+function askName(message, current = "") {
+  const name = prompt(message, current);
+  return name && name.trim() ? name.trim() : null;
+}
+
+function countLabel(count, singular) {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
+function renderFolders() {
+  const { folders, boards } = library;
+  showLibraryScreen("Teaching Boards", folders.length ? `${countLabel(folders.length, "folder")}, ${countLabel(boards.length, "canvas").replace("canvass", "canvases")}.` : "Create a folder to get started, such as Session 1.");
+  element("library-actions").append(libraryButton("New folder", createFolder, false));
+  element("library-list").replaceChildren(...folders.map((folder, index) => {
+    const inside = boards.filter((board) => board.folderId === folder.id).length;
+    const card = Object.assign(document.createElement("button"), { type: "button", className: "topic-card" });
+    card.append(
+      Object.assign(document.createElement("span"), { className: "topic-number", textContent: String(index + 1).padStart(2, "0") }),
+      Object.assign(document.createElement("span"), { className: "topic-name", textContent: folder.name }),
+      Object.assign(document.createElement("span"), { className: "badge submitted", textContent: countLabel(inside, "canvas").replace("canvass", "canvases") }),
+    );
+    card.addEventListener("click", () => { location.hash = `folder=${folder.id}`; });
+    const item = document.createElement("li");
+    item.append(card);
+    return item;
+  }));
+}
+
+function renderFolder(folder) {
+  const inside = library.boards.filter((board) => board.folderId === folder.id);
+  showLibraryScreen(folder.name, inside.length ? countLabel(inside.length, "canvas").replace("canvass", "canvases") : "This folder is empty.");
+  element("library-back-row").hidden = false;
+  element("library-actions").append(
+    libraryButton("New canvas", () => createCanvas(folder), false),
+    libraryButton("Rename folder", () => renameFolder(folder)),
+    libraryButton("Delete folder", () => deleteFolder(folder, inside.length)),
+  );
+  element("library-list").replaceChildren(...inside.map((board, index) => {
+    const card = Object.assign(document.createElement("button"), { type: "button", className: "topic-card" });
+    card.append(
+      Object.assign(document.createElement("span"), { className: "topic-number", textContent: String(index + 1).padStart(2, "0") }),
+      Object.assign(document.createElement("span"), { className: "topic-name", textContent: board.name }),
+      Object.assign(document.createElement("span"), { className: "badge open", textContent: `Saved ${new Date(board.updatedAt).toLocaleString()}` }),
+    );
+    card.addEventListener("click", () => { location.hash = `canvas=${board.id}`; });
+    const actions = Object.assign(document.createElement("div"), { className: "canvas-item-actions" });
+    for (const [label, action] of [["Rename", () => renameCanvas(board)], ["Delete", () => deleteCanvas(board)]]) {
+      const button = Object.assign(document.createElement("button"), { type: "button", className: "text-button", textContent: label });
+      button.setAttribute("aria-label", `${label} ${board.name}`);
+      button.addEventListener("click", action);
+      actions.append(button);
+    }
+    const item = Object.assign(document.createElement("li"), { className: "canvas-item" });
+    item.append(card, actions);
+    return item;
+  }));
+}
+
+async function loadLibrary(routeNumber) {
+  showLibraryScreen("Teaching Boards", "Loading...");
+  const result = await callLibrary({ action: "adminBoards" });
+  if (!result || routeNumber !== latestRoute) return false;
+  if (!result.ok) {
+    showLibraryProblem("We couldn't load your folders. Please try again.");
+    return false;
+  }
+  library = { folders: result.folders, boards: result.boards };
+  return true;
+}
+
+function reportLibraryError(result) {
+  showLibraryProblem(result.error === "notempty"
+    ? "Delete or empty this folder's canvases first."
+    : "We couldn't make that change. Please try again.");
+}
+
+async function createFolder() {
+  const name = askName("Name for the new folder, such as Session 1");
+  if (!name) return;
+  const result = await callLibrary({ action: "adminFolderCreate", name });
+  if (!result) return;
+  if (!result.ok) return reportLibraryError(result);
+  location.hash = `folder=${result.folder.id}`;
+}
+
+async function renameFolder(folder) {
+  const name = askName("New name for this folder", folder.name);
+  if (!name) return;
+  const result = await callLibrary({ action: "adminFolderRename", id: folder.id, name });
+  if (!result) return;
+  if (!result.ok) return reportLibraryError(result);
+  route();
+}
+
+async function deleteFolder(folder, canvasCount) {
+  if (canvasCount) return showLibraryProblem(`Delete this folder's ${countLabel(canvasCount, "canvas").replace("canvass", "canvases")} first.`);
+  if (!confirm(`Delete the folder "${folder.name}"?`)) return;
+  const result = await callLibrary({ action: "adminFolderDelete", id: folder.id });
+  if (!result) return;
+  if (!result.ok) return reportLibraryError(result);
+  location.hash = "";
+}
+
+async function createCanvas(folder) {
+  const name = askName("Name for the new canvas", `Canvas ${library.boards.filter((board) => board.folderId === folder.id).length + 1}`);
+  if (!name) return;
+  const result = await callLibrary({ action: "adminBoardCreate", folderId: folder.id, name });
+  if (!result) return;
+  if (!result.ok) return reportLibraryError(result);
+  location.hash = `canvas=${result.board.id}`;
+}
+
+async function renameCanvas(board) {
+  const name = askName("New name for this canvas", board.name);
+  if (!name) return;
+  const result = await callLibrary({ action: "adminBoardRename", id: board.id, name });
+  if (!result) return;
+  if (!result.ok) return reportLibraryError(result);
+  const local = await readLocal(board.id);
+  if (local) await writeLocal({ ...local, name });
+  route();
+}
+
+async function deleteCanvas(board) {
+  if (!confirm(`Delete the canvas "${board.name}"? This can't be undone.`)) return;
+  const result = await callLibrary({ action: "adminBoardDelete", id: board.id });
+  if (!result) return;
+  if (!result.ok) return reportLibraryError(result);
+  await removeLocal(board.id);
+  route();
+}
+
+element("library-back").addEventListener("click", () => { location.hash = ""; });
+
+element("to-folder").addEventListener("click", async () => {
+  closeMenu();
   await flushSave();
-  const board = createBoard(name.trim() || nextBoardName());
-  boards.push(board);
-  await writeBoard(board);
-  showBoard(board);
+  syncSoon(0);
+  location.hash = `folder=${currentBoard.folderId}`;
 });
 
 element("rename-board").addEventListener("click", async () => {
-  const name = prompt("New name for this board", currentBoard.name);
-  if (!name || !name.trim()) return;
-  await flushSave();
-  currentBoard = { ...currentBoard, name: name.trim() };
-  boards = boards.map((board) => (board.id === currentBoard.id ? currentBoard : board));
-  await writeBoard(currentBoard);
-  renderBoardList();
+  closeMenu();
+  const name = askName("New name for this canvas", currentBoard.name);
+  if (!name) return;
+  try {
+    const result = await callBackend({ action: "adminBoardRename", token: getAdminToken(), id: currentBoard.id, name });
+    if (!result.ok) throw new Error(result.error);
+  } catch (error) {
+    return showNotice("We couldn't rename this canvas. Please check your connection and try again.");
+  }
+  currentBoard = { ...currentBoard, name };
+  element("canvas-name").textContent = name;
+  await writeLocal(currentBoard);
 });
 
-element("delete-board").addEventListener("click", async () => {
-  if (!confirm(`Delete "${currentBoard.name}"? This can't be undone.`)) return;
-  clearTimeout(saveTimer);
-  pendingSave = null;
-  await removeBoard(currentBoard.id);
-  boards = boards.filter(({ id }) => id !== currentBoard.id);
-  if (!boards.length) {
-    boards.push(createBoard("Board 1"));
-    await writeBoard(boards[0]);
-  }
-  showBoard(boards[0]);
+/* Moving between screens */
+
+async function route() {
+  const routeNumber = ++latestRoute;
+  await flushSave();
+  if (routeNumber !== latestRoute) return;
+  currentBoard = null;
+  const [kind, id] = location.hash.slice(1).split("=");
+  if (kind === "canvas" && id) return openCanvas(id, routeNumber);
+  if (!(await loadLibrary(routeNumber))) return;
+  const folder = kind === "folder" ? library.folders.find((item) => item.id === id) : null;
+  if (folder) renderFolder(folder);
+  else renderFolders();
+  element("library-title").focus({ preventScroll: true });
+}
+
+window.addEventListener("hashchange", route);
+
+/* Saving an image and presenting */
+
+element("export").addEventListener("click", () => {
+  closeMenu();
+  if (!shapes.length) return showNotice("This board is empty, so there's nothing to save yet.");
+  element("board-notice").hidden = true;
+  const all = shapes.map(boundsOf);
+  const left = Math.min(...all.map((bounds) => bounds[0])) - EXPORT_PADDING;
+  const top = Math.min(...all.map((bounds) => bounds[1])) - EXPORT_PADDING;
+  const width = Math.max(...all.map((bounds) => bounds[2])) + EXPORT_PADDING - left;
+  const height = Math.max(...all.map((bounds) => bounds[3])) + EXPORT_PADDING - top;
+  const scale = Math.min(2, MAX_EXPORT_SIZE / width, MAX_EXPORT_SIZE / height);
+  const canvas = Object.assign(document.createElement("canvas"), { width: Math.ceil(width * scale), height: Math.ceil(height * scale) });
+  const context = canvas.getContext("2d");
+  context.fillStyle = BACKGROUNDS[background].fill;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.setTransform(scale, 0, 0, scale, -left * scale, -top * scale);
+  shapes.forEach((shape) => drawShape(context, shape));
+  canvas.toBlob((blob) => {
+    const link = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: `${currentBoard.name.replace(/[^\w -]+/g, "").trim() || "board"}.png`,
+    });
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
 });
 
 element("present").addEventListener("click", () => {
+  closeMenu();
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+    return;
+  }
   document.documentElement.requestFullscreen().catch(() => {
     showNotice("Your browser blocked full screen. Try pressing F11 instead.");
   });
 });
 document.addEventListener("fullscreenchange", () => {
-  document.body.classList.toggle("presenting", Boolean(document.fullscreenElement));
+  element("present").textContent = document.fullscreenElement ? "Exit full screen" : "Full screen";
 });
 
-// Tries to save the latest drawing if the tab closes before the short save delay ends.
-window.addEventListener("pagehide", flushSave);
+window.addEventListener("pagehide", () => {
+  finishZoom();
+  flushSave();
+});
+window.addEventListener("beforeunload", (event) => {
+  if (savePending || unsyncedCount) event.preventDefault();
+});
+window.addEventListener("online", () => syncSoon(0));
+new ResizeObserver(resizeCanvases).observe(element("stage"));
 
 async function start() {
+  buildToolbar();
+  setTool("pen");
   try {
     database = await openDatabase();
   } catch (error) {
-    showNotice("This browser is blocking storage, so this board will be lost when you close the page. Use Export image from the menu to keep a copy.");
+    database = null;
+    showNotice("This browser is blocking storage on this computer, so changes only save online while you're connected.");
   }
-  boards = await readBoards();
-  if (!boards.length) {
-    boards.push(createBoard("Board 1"));
-    await writeBoard(boards[0]);
-  }
-  const latest = boards.reduce((newest, board) => (board.updatedAt > newest.updatedAt ? board : newest));
-  showBoard(latest);
+  syncSoon(0);
+  route();
+  restoreHandChoice();
 }
 
-start();
+function restoreHandChoice() {
+  try {
+    if (localStorage.getItem(HAND_KEY) === "on") element("hand-toggle").click();
+  } catch (error) {
+    // The switch starts off when this browser blocks storage.
+  }
+}
+
+if (getAdminToken()) start();
 </script>
 </body>
 </html>
