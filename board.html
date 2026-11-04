@@ -20,9 +20,9 @@
   .topic-name, .topic-card { overflow-wrap: anywhere; }
   .topbar-links { display: flex; gap: 16px; }
   #save-status { position: absolute; left: 10px; bottom: 54px; padding: 3px 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: .78rem; }
-  #stage.tools-hidden #save-status, #stage.tools-hidden .handwriting { display: none; }
-  .handwriting { position: absolute; right: 10px; bottom: 54px; max-width: calc(100% - 20px); display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
-  #hand-toggle { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; background: #fff; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font: 600 .8rem system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
+  #stage.tools-hidden #save-status, #stage.tools-hidden .handwriting, #stage.tools-hidden #options-dot, #stage.tools-hidden #board-options { display: none; }
+  .handwriting { position: absolute; right: 38px; bottom: 10px; max-width: calc(100% - 200px); display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+  #hand-toggle { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px; background: none; border: 0; border-radius: 6px; color: var(--ink); font: 600 .8rem system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
   #hand-toggle:hover { background: var(--page); }
   .switch-track { position: relative; width: 30px; height: 16px; border-radius: 99px; background: #a9bcba; }
   .switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
@@ -71,7 +71,12 @@
   .zoom button { min-width: 32px; height: 30px; padding: 0 6px; background: none; border: 0; border-radius: 6px; color: var(--ink); font: 600 .84rem system-ui, sans-serif; cursor: pointer; }
   .zoom button:hover { background: var(--page); }
 
-  .backgrounds { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 2px; padding: 3px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  /* The visible dot is tiny, while the button around it stays easy to click. */
+  #options-dot { position: absolute; right: 6px; bottom: 6px; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; background: none; border: 0; border-radius: 50%; cursor: pointer; }
+  #options-dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #8fa5a2; box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); }
+  #options-dot:hover::after, #options-dot[aria-expanded="true"]::after { background: var(--primary); }
+  #board-options { position: absolute; right: 10px; bottom: 38px; display: grid; justify-items: end; gap: 6px; padding: 8px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px rgba(7, 57, 60, .22); }
+  .backgrounds { display: flex; gap: 2px; }
   .backgrounds button { height: 30px; padding: 0 8px; background: none; border: 0; border-radius: 6px; color: var(--ink); font: 600 .8rem system-ui, sans-serif; cursor: pointer; }
   .backgrounds button:hover { background: var(--page); }
   .backgrounds button[aria-pressed="true"] { background: var(--primary-tint); color: var(--primary); }
@@ -85,7 +90,7 @@
   #text-format span { padding: 0 6px; color: var(--muted); font-size: .76rem; white-space: nowrap; }
   #stage.tools-hidden #text-format { display: none; }
 
-  #stage.tools-hidden .tools, #stage.tools-hidden .menu-button, #stage.tools-hidden .board-menu, #stage.tools-hidden .zoom, #stage.tools-hidden .backgrounds { display: none; }
+  #stage.tools-hidden .tools, #stage.tools-hidden .menu-button, #stage.tools-hidden .board-menu, #stage.tools-hidden .zoom { display: none; }
   #tools-hint { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); padding: 6px 12px; background: rgba(16, 40, 43, .88); color: #fff; border-radius: 6px; font-size: .84rem; white-space: nowrap; pointer-events: none; }
 
   /* Below this width the centred toolbar would run under the menu button. */
@@ -95,6 +100,7 @@
   @media (max-width: 640px) {
     /* Phones have no Ctrl+. to bring hidden tools back. */
     #present, #hide-tools, #text-format span { display: none; }
+    .handwriting { right: 10px; bottom: 80px; max-width: calc(100% - 20px); }
   }
 </style>
 </head>
@@ -142,7 +148,6 @@
     <button id="zoom-reset" type="button" title="Reset zoom (0)">100%</button>
     <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
   </div>
-  <div class="backgrounds" id="backgrounds" role="group" aria-label="Board background"></div>
   <div id="text-format" role="toolbar" aria-label="Text formatting" hidden>
     <button id="format-bold" type="button" title="Bold (Ctrl+B)" aria-label="Bold" aria-pressed="false">B</button>
     <button id="format-italic" type="button" title="Italic (Ctrl+I)" aria-label="Italic" aria-pressed="false"><i>I</i></button>
@@ -153,10 +158,14 @@
   <div class="handwriting">
     <p id="hand-status" role="status"></p>
     <button class="btn" id="convert-selected" type="button" hidden>Convert to text</button>
+  </div>
+  <button id="options-dot" type="button" title="Board options" aria-label="Board options" aria-expanded="false" aria-controls="board-options"></button>
+  <div id="board-options" hidden>
     <button id="hand-toggle" type="button" role="switch" aria-checked="false" title="Lets you turn chosen pen writing into typed text. Images of the writing you choose go to Google Gemini.">
       <span class="switch-track" aria-hidden="true"></span>
       <span id="hand-toggle-label">Handwriting to text: Off</span>
     </button>
+    <div class="backgrounds" id="backgrounds" role="group" aria-label="Board background"></div>
   </div>
   <p id="tools-hint" role="status" hidden>Press Ctrl+. to show the tools</p>
 </main>
@@ -227,6 +236,7 @@ const HAND_MIN_FONT = 18;
 const HAND_MAX_FONT = 160;
 const HAND_WORD_GAP = 2;
 const HAND_NOTE_MS = 4000;
+const HAND_READING_OPACITY = 0.35;
 const BULLET_INDENT = 1.2;
 const BULLET_MARK_OFFSET = 0.45;
 const SYNC_DELAY_MS = 3000;
@@ -360,8 +370,10 @@ function renderBase(skip = null) {
     // Skipping what's off screen keeps moving around fast on a very full board.
     const bounds = boundsOf(shape);
     if (bounds[2] < left || bounds[0] > right || bounds[3] < top || bounds[1] > bottom) continue;
+    baseContext.globalAlpha = readingStrokes.has(shape) ? HAND_READING_OPACITY : 1;
     drawShape(baseContext, shape);
   }
+  baseContext.globalAlpha = 1;
 }
 
 function clearLive() {
@@ -783,9 +795,10 @@ function continuePinch() {
 
 liveCanvas.addEventListener("pointerdown", (event) => {
   // A click outside the menu only closes it, so it can't leave a stray mark.
-  if (isMenuOpen()) {
+  if (isMenuOpen() || isOptionsOpen()) {
     event.preventDefault();
     closeMenu();
+    closeOptions();
     return;
   }
   if (event.pointerType === "touch") {
@@ -1133,6 +1146,8 @@ let toolBeforeConvert = "pen";
 let handGeneration = 0;
 let nextHandJob = 0;
 const handJobs = new Map();
+// Writing being read is dimmed straight away, so a conversion responds the moment it's asked for.
+const readingStrokes = new Set();
 
 function setHandStatus(text, temporary = false) {
   clearTimeout(handNoteTimer);
@@ -1158,6 +1173,10 @@ function setHandSwitch(on) {
   handOn = on;
   handGeneration++;
   handJobs.clear();
+  if (readingStrokes.size) {
+    readingStrokes.clear();
+    if (currentBoard) renderBase();
+  }
   element("hand-toggle").setAttribute("aria-checked", String(on));
   element("hand-toggle-label").textContent = `Handwriting to text: ${on ? "On" : "Off"}`;
   rememberHandChoice();
@@ -1287,12 +1306,18 @@ function handwritingImage({ strokes, left, right, top, bottom }) {
 }
 
 function convertStrokes(strokes) {
+  strokes.forEach((stroke) => readingStrokes.add(stroke));
+  renderBase();
+  setHandStatus("Reading your writing...");
   for (const line of groupIntoLines(strokes)) {
     const id = nextHandJob++;
-    handJobs.set(id, { line, boardId: currentBoard.id, generation: handGeneration });
+    handJobs.set(id, { line, boardId: currentBoard.id, generation: handGeneration, startedAt: performance.now() });
     readHandwriting(id, line);
   }
-  setHandStatus("Reading your writing...");
+}
+
+function secondsSince(startedAt) {
+  return ((performance.now() - startedAt) / 1000).toFixed(1);
 }
 
 function handProblemMessage(error) {
@@ -1310,17 +1335,21 @@ async function readHandwriting(id, line) {
       handleEndedSession(true);
       finishHandJob(id, "", "session");
     } else {
-      finishHandJob(id, result.ok ? result.text : "", result.error);
+      finishHandJob(id, result.ok ? result.text : "", result.error, result.geminiMs);
     }
   } catch (error) {
     finishHandJob(id, "", "network");
   }
 }
 
-function finishHandJob(id, text, problem) {
+function finishHandJob(id, text, problem, geminiMs) {
   const job = handJobs.get(id);
   handJobs.delete(id);
   if (!handJobs.size) setHandStatus("");
+  if (job) {
+    job.line.strokes.forEach((stroke) => readingStrokes.delete(stroke));
+    if (currentBoard) renderBase(gesture?.kind === "move" ? new Set(gesture.moving) : null);
+  }
   if (!job || job.generation !== handGeneration || !currentBoard || job.boardId !== currentBoard.id) return;
   const { line } = job;
   if (problem === "session") return;
@@ -1346,7 +1375,8 @@ function finishHandJob(id, text, problem) {
   commit([...shapes.filter((shape) => !removed.has(shape)), converted]);
   if (gesture) renderBase(gesture.kind === "move" ? new Set(gesture.moving) : null);
   else renderAll();
-  setHandStatus("Converted. Press Ctrl+Z to bring your writing back.", true);
+  const timing = geminiMs ? `in ${secondsSince(job.startedAt)} s (Gemini ${(geminiMs / 1000).toFixed(1)} s)` : `in ${secondsSince(job.startedAt)} s`;
+  setHandStatus(`Converted ${timing}. Ctrl+Z brings your writing back.`, true);
 }
 
 element("convert-selected").addEventListener("click", () => {
@@ -1595,6 +1625,10 @@ document.addEventListener("keydown", (event) => {
     closeMenu(true);
     return;
   }
+  if (key === "escape" && isOptionsOpen()) {
+    closeOptions(true);
+    return;
+  }
   if (event.target.matches?.("input, textarea, [contenteditable]")) return;
   // The board list keeps its own keys, apart from Ctrl+A, which would otherwise select the whole page.
   if (event.target.matches?.("select") && !(command && key === "a")) return;
@@ -1647,7 +1681,26 @@ function isMenuOpen() {
   return !element("board-menu").hidden;
 }
 
+function isOptionsOpen() {
+  return !element("board-options").hidden;
+}
+
+function closeOptions(returnFocus = false) {
+  element("board-options").hidden = true;
+  element("options-dot").setAttribute("aria-expanded", "false");
+  if (returnFocus) element("options-dot").focus();
+}
+
+element("options-dot").addEventListener("click", () => {
+  const open = !isOptionsOpen();
+  closeTextEditor(true);
+  closeMenu();
+  element("board-options").hidden = !open;
+  element("options-dot").setAttribute("aria-expanded", String(open));
+});
+
 function openMenu() {
+  closeOptions();
   closeTextEditor(true);
   element("board-menu").hidden = false;
   element("menu-button").setAttribute("aria-expanded", "true");
@@ -1669,6 +1722,7 @@ function toggleTools() {
   element("tools-hint").hidden = !hidden;
   if (hidden) {
     closeMenu();
+    closeOptions();
     hintTimer = setTimeout(() => { element("tools-hint").hidden = true; }, HINT_MS);
     if (!textEditor) document.activeElement?.blur();
   }
