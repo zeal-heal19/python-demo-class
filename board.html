@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teaching Board | WeekendClasses</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="lab-layout.css">
+<style>
+  .board-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .board-bar h1 { margin-right: auto; }
+  .board-bar label { color: var(--on-hero); font-size: .86rem; }
+  #board-select { max-width: 200px; padding: 6px 8px; font: inherit; font-size: .88rem; color: var(--ink); background: #fff; border: 1px solid #a9bcba; border-radius: 6px; }
+  .board-bar .btn { padding: 6px 12px; font-size: .86rem; white-space: nowrap; }
+  #board-notice { flex: none; margin: 0; padding: 8px 20px; background: #fef3d7; color: #6b4300; font-size: .88rem; font-weight: 600; }
+  #canvas { flex: 1; min-height: 0; position: relative; }
+  #canvas > * { height: 100%; }
+  @media (max-width: 640px) {
+    .board-bar h1, .board-bar label, .board-bar a, #present { display: none; }
+    .board-bar { gap: 6px; }
+    #board-select { flex: 1 1 100%; max-width: none; }
+    .board-bar .btn { flex: 1; padding: 6px 8px; }
+  }
+  /* The whiteboard fills the whole screen while presenting. */
+  body.presenting .topbar { display: none; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap board-bar">
+    <h1>Teaching Board</h1>
+    <label for="board-select">Board</label>
+    <select id="board-select"></select>
+    <button class="btn secondary" id="new-board" type="button">New</button>
+    <button class="btn secondary" id="rename-board" type="button">Rename</button>
+    <button class="btn secondary" id="delete-board" type="button">Delete</button>
+    <button class="btn" id="present" type="button">Full screen</button>
+    <a href="index.html">Course page</a>
+  </div>
+</header>
+<p id="board-notice" role="alert" hidden></p>
+<main id="canvas"></main>
+
+<script>window.EXCALIDRAW_ASSET_PATH = new URL("vendor/excalidraw/", location.href).href;</script>
+<script src="vendor/excalidraw/react.production.min.js"></script>
+<script src="vendor/excalidraw/react-dom.production.min.js"></script>
+<script src="vendor/excalidraw/excalidraw.production.min.js"></script>
+<script>
+const element = (id) => document.getElementById(id);
+const SAVE_DELAY_MS = 500;
+const DB_NAME = "teaching-board";
+const STORE = "boards";
+
+// Boards live in this browser's IndexedDB, because images can be too large for localStorage.
+// If it's blocked, memoryBoards keeps the current visit working and a notice explains the risk.
+let database = null;
+const memoryBoards = new Map();
+let boards = [];
+let currentBoard = null;
+let excalidrawApi = null;
+let lastSaved = null;
+let saveTimer = null;
+let pendingSave = null;
+const root = ReactDOM.createRoot(element("canvas"));
+
+function openDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: "id" });
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function runStore(mode, work) {
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORE, mode);
+    const request = work(transaction.objectStore(STORE));
+    transaction.oncomplete = () => resolve(request.result);
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+function showNotice(message) {
+  element("board-notice").textContent = message;
+  element("board-notice").hidden = false;
+}
+
+async function readBoards() {
+  if (!database) return [...memoryBoards.values()];
+  return runStore("readonly", (store) => store.getAll());
+}
+
+async function writeBoard(board) {
+  memoryBoards.set(board.id, board);
+  if (!database) return;
+  try {
+    await runStore("readwrite", (store) => store.put(board));
+  } catch (error) {
+    showNotice("We couldn't save this board, possibly because this browser's storage is full. Use Export image from the menu to keep a copy.");
+  }
+}
+
+async function removeBoard(id) {
+  memoryBoards.delete(id);
+  if (database) await runStore("readwrite", (store) => store.delete(id));
+}
+
+function createBoard(name) {
+  return { id: crypto.randomUUID(), name, updatedAt: Date.now(), elements: [], appState: {}, files: {} };
+}
+
+function nextBoardName() {
+  return `Board ${boards.length + 1}`;
+}
+
+function changeSignature(elements, appState, files) {
+  return [ExcalidrawLib.getSceneVersion(elements), appState.viewBackgroundColor, appState.theme, appState.gridSize, Object.keys(files).length].join("|");
+}
+
+function snapshot(board, elements, appState, files) {
+  const kept = elements.filter((item) => !item.isDeleted);
+  const usedFiles = new Set(kept.map((item) => item.fileId).filter(Boolean));
+  return {
+    ...board,
+    updatedAt: Date.now(),
+    elements: kept,
+    appState: {
+      viewBackgroundColor: appState.viewBackgroundColor,
+      theme: appState.theme,
+      gridSize: appState.gridSize,
+      scrollX: appState.scrollX,
+      scrollY: appState.scrollY,
+      zoom: appState.zoom,
+    },
+    files: Object.fromEntries(Object.entries(files).filter(([id]) => usedFiles.has(id))),
+  };
+}
+
+function scheduleSave(boardId, elements, appState, files) {
+  if (!currentBoard || currentBoard.id !== boardId) return;
+  const signature = changeSignature(elements, appState, files);
+  // The first change only reports the board that was just opened.
+  if (lastSaved === null) lastSaved = signature;
+  if (signature === lastSaved) return;
+  lastSaved = signature;
+  pendingSave = () => {
+    currentBoard = snapshot(currentBoard, elements, appState, files);
+    boards = boards.map((board) => (board.id === currentBoard.id ? currentBoard : board));
+    return writeBoard(currentBoard);
+  };
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, SAVE_DELAY_MS);
+}
+
+function flushSave() {
+  clearTimeout(saveTimer);
+  const save = pendingSave;
+  pendingSave = null;
+  return save ? save() : Promise.resolve();
+}
+
+function renderBoardList() {
+  const sorted = [...boards].sort((first, second) => first.name.localeCompare(second.name, undefined, { numeric: true }));
+  element("board-select").replaceChildren(...sorted.map((board) => Object.assign(document.createElement("option"), {
+    value: board.id, textContent: board.name, selected: board.id === currentBoard.id,
+  })));
+}
+
+// Excalidraw's default menu, without its links to social media.
+function boardMenu() {
+  const { MainMenu } = ExcalidrawLib;
+  const { DefaultItems } = MainMenu;
+  return React.createElement(MainMenu, null,
+    React.createElement(DefaultItems.LoadScene),
+    React.createElement(DefaultItems.SaveToActiveFile),
+    React.createElement(DefaultItems.Export),
+    React.createElement(DefaultItems.SaveAsImage),
+    React.createElement(DefaultItems.Help),
+    React.createElement(DefaultItems.ClearCanvas),
+    React.createElement(MainMenu.Separator),
+    React.createElement(DefaultItems.ToggleTheme),
+    React.createElement(DefaultItems.ChangeCanvasBackground));
+}
+
+function showBoard(board) {
+  currentBoard = board;
+  lastSaved = null;
+  renderBoardList();
+  // A new key gives each board its own canvas and its own undo history.
+  root.render(React.createElement(ExcalidrawLib.Excalidraw, {
+    key: board.id,
+    // Shortcuts keep working after a click on the Teaching Board buttons.
+    handleKeyboardGlobally: true,
+    excalidrawAPI: (api) => { excalidrawApi = api; },
+    initialData: { elements: board.elements, appState: board.appState, files: board.files, scrollToContent: false },
+    onChange: (elements, appState, files) => scheduleSave(board.id, elements, appState, files),
+  }, boardMenu()));
+}
+
+async function switchTo(board) {
+  await flushSave();
+  showBoard(boards.find(({ id }) => id === board.id) || board);
+}
+
+element("board-select").addEventListener("change", (event) => {
+  switchTo(boards.find(({ id }) => id === event.target.value));
+});
+
+element("new-board").addEventListener("click", async () => {
+  const name = prompt("Name for the new board", nextBoardName());
+  if (name === null) return;
+  await flushSave();
+  const board = createBoard(name.trim() || nextBoardName());
+  boards.push(board);
+  await writeBoard(board);
+  showBoard(board);
+});
+
+element("rename-board").addEventListener("click", async () => {
+  const name = prompt("New name for this board", currentBoard.name);
+  if (!name || !name.trim()) return;
+  await flushSave();
+  currentBoard = { ...currentBoard, name: name.trim() };
+  boards = boards.map((board) => (board.id === currentBoard.id ? currentBoard : board));
+  await writeBoard(currentBoard);
+  renderBoardList();
+});
+
+element("delete-board").addEventListener("click", async () => {
+  if (!confirm(`Delete "${currentBoard.name}"? This can't be undone.`)) return;
+  clearTimeout(saveTimer);
+  pendingSave = null;
+  await removeBoard(currentBoard.id);
+  boards = boards.filter(({ id }) => id !== currentBoard.id);
+  if (!boards.length) {
+    boards.push(createBoard("Board 1"));
+    await writeBoard(boards[0]);
+  }
+  showBoard(boards[0]);
+});
+
+element("present").addEventListener("click", () => {
+  document.documentElement.requestFullscreen().catch(() => {
+    showNotice("Your browser blocked full screen. Try pressing F11 instead.");
+  });
+});
+document.addEventListener("fullscreenchange", () => {
+  document.body.classList.toggle("presenting", Boolean(document.fullscreenElement));
+});
+
+// Tries to save the latest drawing if the tab closes before the short save delay ends.
+window.addEventListener("pagehide", flushSave);
+
+async function start() {
+  try {
+    database = await openDatabase();
+  } catch (error) {
+    showNotice("This browser is blocking storage, so this board will be lost when you close the page. Use Export image from the menu to keep a copy.");
+  }
+  boards = await readBoards();
+  if (!boards.length) {
+    boards.push(createBoard("Board 1"));
+    await writeBoard(boards[0]);
+  }
+  const latest = boards.reduce((newest, board) => (board.updatedAt > newest.updatedAt ? board : newest));
+  showBoard(latest);
+}
+
+start();
+</script>
+</body>
+</html>
