@@ -276,6 +276,7 @@ const HAND_MAX_FONT = 160;
 const HAND_WORD_GAP = 2;
 const HAND_NOTE_MS = 4000;
 const HAND_READING_OPACITY = 0.35;
+const WORKER_PASS_MARGIN_MS = 60000;
 const BULLET_INDENT = 1.2;
 const BULLET_MARK_OFFSET = 0.45;
 const SYNC_DELAY_MS = 3000;
@@ -1664,9 +1665,47 @@ function handProblemMessage(error) {
   return "Couldn't convert that writing, so it was left as it is.";
 }
 
-async function readHandwriting(id, line) {
+let workerAccess = null;
+let workerAccessRequest = null;
+
+// Asks the backend for the Worker's address and a pass, once, ready for the first conversion.
+function loadWorkerAccess() {
+  if (workerAccess && (!workerAccess.url || workerAccess.expiry - Date.now() > WORKER_PASS_MARGIN_MS)) return Promise.resolve(workerAccess);
+  if (!workerAccessRequest) {
+    workerAccessRequest = callBackend({ action: "adminWorkerPass", token: getAdminToken() })
+      .then((result) => {
+        workerAccess = result.ok ? result : null;
+        return workerAccess;
+      })
+      .catch(() => null)
+      .finally(() => { workerAccessRequest = null; });
+  }
+  return workerAccessRequest;
+}
+
+// Returns null when the Worker can't answer, so that the slower route can be used instead.
+async function askWorker(image) {
+  const access = await loadWorkerAccess();
+  if (!access?.url) return null;
   try {
-    const result = await callBackend({ action: "adminHandwriting", token: getAdminToken(), image: handwritingImage(line) });
+    // Plain text avoids an extra permission request from the browser before each conversion.
+    const response = await fetch(access.url, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ pass: access.pass, image }) });
+    if (!response.ok) return null;
+    const result = await response.json();
+    if (result.error === "session") {
+      workerAccess = null;
+      return null;
+    }
+    return result;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function readHandwriting(id, line) {
+  const image = handwritingImage(line);
+  try {
+    const result = await askWorker(image) || await callBackend({ action: "adminHandwriting", token: getAdminToken(), image });
     if (result.error === "session") {
       handleEndedSession(true);
       finishHandJob(id, "", "session");
@@ -1726,6 +1765,7 @@ element("hand-toggle").addEventListener("click", async () => {
   element("hand-toggle").blur();
   if (!on) return;
   loadHandFont();
+  loadWorkerAccess();
   setHandStatus("Press C, then drag a box around your words.", true);
 });
 
