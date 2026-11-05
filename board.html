@@ -64,6 +64,14 @@
   .tools button[disabled] { opacity: .35; cursor: default; }
   .tools svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .tools .swatch { width: 18px; height: 18px; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 0 0 1px rgba(16, 40, 43, .3); }
+  .tools .swatch-rainbow { background: conic-gradient(#d92d20, #f97316, #eab308, #079455, #1570ef, #7c3aed, #db2777, #d92d20); }
+  #color-panel { position: absolute; top: 62px; width: 208px; padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px rgba(7, 57, 60, .22); }
+  #color-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  #color-grid button { width: 30px; height: 30px; padding: 0; justify-self: center; border: 1px solid rgba(16, 40, 43, .3); border-radius: 50%; cursor: pointer; }
+  #color-grid button[aria-pressed="true"] { outline: 2px solid var(--primary); outline-offset: 2px; }
+  #color-custom-label { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--ink); font-size: .82rem; font-weight: 600; cursor: pointer; }
+  #color-custom { width: 44px; height: 28px; padding: 0; border: 1px solid #a9bcba; border-radius: 6px; background: #fff; cursor: pointer; }
+  #stage.tools-hidden #color-panel { display: none; }
   .tools .gap { flex: none; width: 1px; height: 22px; margin: 0 4px; background: var(--line); }
   .tools .dot { border-radius: 50%; background: currentColor; }
 
@@ -87,7 +95,9 @@
   #text-format button { white-space: nowrap; min-width: 32px; height: 30px; padding: 0 6px; background: none; border: 0; border-radius: 6px; color: var(--ink); font: 700 .9rem system-ui, sans-serif; cursor: pointer; }
   #text-format button:hover { background: var(--page); }
   #text-format button[aria-pressed="true"] { background: var(--primary-tint); color: var(--primary); }
-  #text-format span { padding: 0 6px; color: var(--muted); font-size: .76rem; white-space: nowrap; }
+  #text-format .format-hint { padding: 0 6px; color: var(--muted); font-size: .76rem; white-space: nowrap; }
+  #format-size { min-width: 26px; text-align: center; color: var(--ink); font: 600 .84rem system-ui, sans-serif; }
+  #text-format .format-gap { width: 1px; height: 20px; margin: 0 3px; background: var(--line); }
   #stage.tools-hidden #text-format { display: none; }
 
   #stage.tools-hidden .tools, #stage.tools-hidden .menu-button, #stage.tools-hidden .board-menu, #stage.tools-hidden .zoom { display: none; }
@@ -99,7 +109,7 @@
   }
   @media (max-width: 640px) {
     /* Phones have no Ctrl+. to bring hidden tools back. */
-    #present, #hide-tools, #text-format span { display: none; }
+    #present, #hide-tools, #text-format .format-hint { display: none; }
     .handwriting { right: 10px; bottom: 80px; max-width: calc(100% - 20px); }
   }
 </style>
@@ -128,6 +138,7 @@
 </main>
 
 <main id="stage" hidden>
+  <input type="file" id="image-file" accept="image/*" hidden>
   <canvas id="base" aria-hidden="true"></canvas>
   <canvas id="live" role="img" aria-label="Drawing board"></canvas>
   <div class="tools" id="tools" role="toolbar" aria-label="Drawing tools"></div>
@@ -148,11 +159,19 @@
     <button id="zoom-reset" type="button" title="Reset zoom (0)">100%</button>
     <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
   </div>
+  <div id="color-panel" role="group" aria-label="More colours" hidden>
+    <div id="color-grid"></div>
+    <label id="color-custom-label">Custom colour <input type="color" id="color-custom" value="#1570ef"></label>
+  </div>
   <div id="text-format" role="toolbar" aria-label="Text formatting" hidden>
     <button id="format-bold" type="button" title="Bold (Ctrl+B)" aria-label="Bold" aria-pressed="false">B</button>
     <button id="format-italic" type="button" title="Italic (Ctrl+I)" aria-label="Italic" aria-pressed="false"><i>I</i></button>
     <button id="format-bullets" type="button" title="Bullet points (Ctrl+Shift+8)" aria-label="Bullet points" aria-pressed="false">• List</button>
-    <span>Click outside or press Esc to finish</span>
+    <span class="format-gap"></span>
+    <button id="format-smaller" type="button" title="Smaller text (Ctrl+Shift+,)" aria-label="Smaller text">A−</button>
+    <span id="format-size" aria-live="polite"></span>
+    <button id="format-bigger" type="button" title="Bigger text (Ctrl+Shift+.)" aria-label="Bigger text">A+</button>
+    <span class="format-hint">Click outside or press Esc to finish</span>
   </div>
   <p id="save-status" role="status"></p>
   <div class="handwriting">
@@ -198,8 +217,10 @@ const TOOLS = [
 ];
 // Colours are stored by name, so a drawing stays readable when its background changes.
 const COLORS = [["Default ink", "ink"], ["Red", "red"], ["Blue", "blue"], ["Green", "green"]];
-const LIGHT_PAINT = { ink: "#1e1e1e", red: "#d92d20", blue: "#1570ef", green: "#079455", selection: "#0f766e" };
-const DARK_PAINT = { ink: "#ffffff", red: "#ff6b60", blue: "#5eaeff", green: "#3ddc97", selection: "#2dd4bf" };
+const LIGHT_PAINT = { ink: "#1e1e1e", red: "#d92d20", blue: "#1570ef", green: "#079455", yellow: "#eab308", orange: "#f97316", purple: "#7c3aed", pink: "#db2777", teal: "#0d9488", brown: "#92400e", gray: "#6b7280", selection: "#0f766e" };
+const DARK_PAINT = { ink: "#ffffff", red: "#ff6b60", blue: "#5eaeff", green: "#3ddc97", yellow: "#facc15", orange: "#fb923c", purple: "#a78bfa", pink: "#f472b6", teal: "#2dd4bf", brown: "#d6a77a", gray: "#9ca3af", selection: "#2dd4bf" };
+// Named colours adjust to the background. Black, white and custom colours stay exactly as chosen.
+const MORE_COLORS = [["Red", "red"], ["Yellow", "yellow"], ["Blue", "blue"], ["Green", "green"], ["Orange", "orange"], ["Purple", "purple"], ["Pink", "pink"], ["Teal", "teal"], ["Brown", "brown"], ["Gray", "gray"], ["Black", "#000000"], ["White", "#ffffff"]];
 const BACKGROUNDS = {
   white: { label: "White", fill: "#ffffff", paint: LIGHT_PAINT },
   dark: { label: "Dark", fill: "#1e1e1e", paint: DARK_PAINT },
@@ -219,6 +240,22 @@ const PICTURE_ZOOM_SHAPES = 300;
 const MAX_SELECTION_BOXES = 100;
 const PALM_GUARD_MS = 800;
 const DOUBLE_TAP_MS = 400;
+const MIN_TEXT_SIZE = 10;
+const MAX_TEXT_SIZE = 240;
+const TEXT_SIZE_STEP = 1.2;
+const MIN_IMAGE_SIZE = 20;
+const HANDLE_SIZE = 10;
+const HANDLE_REACH = 10;
+const TOUCH_HANDLE_REACH = 22;
+// Canvases save to the Google Sheet, which holds about 4 million characters each, so images are kept small.
+const MAX_IMAGE_SIDE = 1600;
+const MAX_IMAGE_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_KEPT_PNG_LENGTH = 300000;
+const MAX_IMAGE_LENGTH = 800000;
+const MAX_CANVAS_IMAGES_LENGTH = 3000000;
+const IMAGE_QUALITY = 0.82;
+const IMAGE_SHRINK = 0.75;
+const NEW_IMAGE_SCREEN_SHARE = 0.5;
 const LOCKED_COLOR = "#f59e0b";
 const HINT_MS = 2500;
 const MAX_UNDO = 200;
@@ -260,6 +297,9 @@ const touches = new Map();
 let penSeen = false;
 let lastPenAt = -Infinity;
 let lastTap = { time: -Infinity, shape: null };
+// The size last chosen in the text box, used for the next new text until the thickness changes.
+let chosenTextSize = null;
+const loadedImages = new Map();
 let sizeIndex = 0;
 let selected = [];
 let gesture = null;
@@ -315,9 +355,30 @@ function tracePen(context, points) {
   context.lineTo(points[points.length - 2], points[points.length - 1]);
 }
 
+function paintFor(name) {
+  const paint = BACKGROUNDS[background].paint;
+  return paint[name] || (/^#[0-9a-f]{6}$/i.test(name) ? name : paint.ink);
+}
+
+function imageFor(src) {
+  let image = loadedImages.get(src);
+  if (!image && src.startsWith("data:image/")) {
+    image = new Image();
+    image.onload = requestRender;
+    image.src = src;
+    loadedImages.set(src, image);
+  }
+  return image;
+}
+
 function drawShape(context, shape) {
   const { type, points } = shape;
-  const paint = BACKGROUNDS[background].paint[shape.color];
+  if (type === "image") {
+    const image = imageFor(shape.src);
+    if (image?.complete && image.naturalWidth) context.drawImage(image, points[0], points[1], points[2] - points[0], points[3] - points[1]);
+    return;
+  }
+  const paint = paintFor(shape.color);
   context.strokeStyle = paint;
   context.fillStyle = paint;
   context.lineWidth = shape.size;
@@ -407,8 +468,35 @@ function drawBox([left, top, right, bottom], strokeColor) {
   liveContext.restore();
 }
 
+function isResizable(shape) {
+  return (shape.type === "image" || shape.type === "text") && !shape.locked;
+}
+
+function handleCorners(shape) {
+  const [left, top, right, bottom] = boundsOf(shape);
+  return [[left - 4, top - 4], [right + 4, top - 4], [left - 4, bottom + 4], [right + 4, bottom + 4]];
+}
+
+function drawHandles(shape) {
+  const size = HANDLE_SIZE / view.zoom;
+  liveContext.save();
+  liveContext.fillStyle = "#fff";
+  liveContext.strokeStyle = BACKGROUNDS[background].paint.selection;
+  liveContext.lineWidth = 1.5 / view.zoom;
+  for (const [x, y] of handleCorners(shape)) {
+    liveContext.fillRect(x - size / 2, y - size / 2, size, size);
+    liveContext.strokeRect(x - size / 2, y - size / 2, size, size);
+  }
+  liveContext.restore();
+}
+
 function drawSelection(list) {
   const paint = BACKGROUNDS[background].paint.selection;
+  if (list.length === 1 && isResizable(list[0]) && tool === "select") {
+    drawBox(boundsOf(list[0]), paint);
+    drawHandles(list[0]);
+    return;
+  }
   // One box around a very large selection is quicker, and easier to read, than hundreds of boxes.
   if (list.length > MAX_SELECTION_BOXES) return drawBox(unionBounds(list), paint);
   for (const shape of list) drawBox(boundsOf(shape), shape.locked ? LOCKED_COLOR : paint);
@@ -462,7 +550,7 @@ function isNearShape(shape, x, y, tolerance) {
   const [left, top, right, bottom] = boundsOf(shape);
   if (x < left - tolerance || x > right + tolerance || y < top - tolerance || y > bottom + tolerance) return false;
   const reach = tolerance + shape.size / 2;
-  if (type === "text") return true;
+  if (type === "text" || type === "image") return true;
   if (type === "pen") {
     if (points.length === 2) return Math.hypot(x - points[0], y - points[1]) <= reach;
     for (let index = 0; index < points.length - 2; index += 2) {
@@ -482,12 +570,24 @@ function isNearShape(shape, x, y, tolerance) {
   return Math.abs(scaled - 1) * Math.min(radiusX, radiusY) <= reach;
 }
 
-function unlockedShapeAt(x, y) {
+function unlockedShapeAt(x, y, skipImages = false) {
   const tolerance = HIT_TOLERANCE / view.zoom;
   for (let index = shapes.length - 1; index >= 0; index--) {
-    if (!shapes[index].locked && isNearShape(shapes[index], x, y, tolerance)) return shapes[index];
+    const shape = shapes[index];
+    if (shape.locked || (skipImages && shape.type === "image")) continue;
+    if (isNearShape(shape, x, y, tolerance)) return shape;
   }
   return null;
+}
+
+function resizeCornerAt(x, y, pointerType) {
+  if (selected.length !== 1 || !isResizable(selected[0])) return -1;
+  const exact = HANDLE_REACH / view.zoom;
+  const [left, top, right, bottom] = boundsOf(selected[0]);
+  const outside = x < left || x > right || y < top || y > bottom;
+  // A fingertip gets extra room, but only outside the shape, so small text can still be tapped and moved.
+  const reach = pointerType !== "mouse" && outside ? TOUCH_HANDLE_REACH / view.zoom : exact;
+  return handleCorners(selected[0]).findIndex(([cornerX, cornerY]) => Math.abs(x - cornerX) <= reach && Math.abs(y - cornerY) <= reach);
 }
 
 // Prefers unlocked shapes, so that what's drawn over locked content is easy to pick.
@@ -602,7 +702,7 @@ function roundPoint(value) {
 
 function drawPenSegment(points) {
   const count = points.length;
-  liveContext.strokeStyle = BACKGROUNDS[background].paint[gesture.shape.color];
+  liveContext.strokeStyle = paintFor(gesture.shape.color);
   liveContext.lineWidth = gesture.shape.size;
   liveContext.lineCap = "round";
   liveContext.lineJoin = "round";
@@ -619,7 +719,8 @@ function drawPenSegment(points) {
 }
 
 function eraseAt(x, y) {
-  const hit = unlockedShapeAt(x, y);
+  // Rubbing out writing on top of an image shouldn't remove the image, so images need Select and Delete.
+  const hit = unlockedShapeAt(x, y, true);
   if (!hit) return;
   if (!gesture.erased) {
     gesture.erased = true;
@@ -629,6 +730,40 @@ function eraseAt(x, y) {
     scheduleSave();
   }
   renderBase();
+}
+
+function startResize(corner, x, y) {
+  const shape = selected[0];
+  const [left, top, right, bottom] = boundsOf(shape);
+  const towardsRight = corner % 2 === 1;
+  const towardsBottom = corner >= 2;
+  const anchorX = towardsRight ? left : right;
+  const anchorY = towardsBottom ? top : bottom;
+  gesture = { kind: "resize", shape, towardsRight, towardsBottom, anchorX, anchorY, startDistance: Math.max(Math.hypot(x - anchorX, y - anchorY), 1), resized: null };
+  renderBase(new Set([shape]));
+  clearLive();
+  drawShape(liveContext, shape);
+  drawSelection([shape]);
+}
+
+// Places a resized shape so that the corner opposite the dragged one stays still.
+function resizedShape({ shape, towardsRight, towardsBottom, anchorX, anchorY, startDistance }, x, y) {
+  const scale = Math.hypot(x - anchorX, y - anchorY) / startDistance;
+  if (shape.type === "text") {
+    const fontSize = Math.round(Math.min(MAX_TEXT_SIZE, Math.max(MIN_TEXT_SIZE, shape.fontSize * scale)));
+    const size = measureLines(textLines(shape), fontSize, familyOf(shape));
+    const left = towardsRight ? anchorX : anchorX - size.width;
+    const top = towardsBottom ? anchorY : anchorY - size.height;
+    return { ...shape, fontSize, ...size, points: [roundPoint(left), roundPoint(top)] };
+  }
+  const [startLeft, startTop, startRight, startBottom] = boundsOf(shape);
+  const smallest = Math.min(startRight - startLeft, startBottom - startTop);
+  const limited = Math.max(scale, MIN_IMAGE_SIZE / Math.max(smallest, 1));
+  const width = (startRight - startLeft) * limited;
+  const height = (startBottom - startTop) * limited;
+  const left = towardsRight ? anchorX : anchorX - width;
+  const top = towardsBottom ? anchorY : anchorY - height;
+  return { ...shape, points: [roundPoint(left), roundPoint(top), roundPoint(left + width), roundPoint(top + height)] };
 }
 
 function startSelecting(x, y, adding) {
@@ -661,7 +796,7 @@ function startGesture(event) {
   } else if (activeTool === "pen") {
     gesture = { kind: "pen", shape: { type: "pen", color, size: SIZES[sizeIndex][1], points: [roundPoint(x), roundPoint(y)] } };
     clearLive();
-    liveContext.fillStyle = BACKGROUNDS[background].paint[color];
+    liveContext.fillStyle = paintFor(color);
     liveContext.beginPath();
     liveContext.arc(x, y, SIZES[sizeIndex][1] / 2, 0, Math.PI * 2);
     liveContext.fill();
@@ -676,7 +811,9 @@ function startGesture(event) {
     gesture = { kind: "marquee", convert: true, startX: x, startY: y, endX: x, endY: y };
     clearLive();
   } else if (activeTool === "select") {
-    startSelecting(x, y, event.shiftKey);
+    const corner = resizeCornerAt(x, y, event.pointerType);
+    if (corner !== -1) startResize(corner, x, y);
+    else startSelecting(x, y, event.shiftKey);
   }
   if (!gesture) return;
   gesture.pointerId = event.pointerId;
@@ -723,6 +860,11 @@ function continueGesture(event) {
     const moved = gesture.moving.map((shape) => translated(shape, x - gesture.startX, y - gesture.startY));
     moved.forEach((shape) => drawShape(liveContext, shape));
     drawSelection(moved);
+  } else if (kind === "resize") {
+    gesture.resized = resizedShape(gesture, x, y);
+    clearLive();
+    drawShape(liveContext, gesture.resized);
+    drawSelection([gesture.resized]);
   } else if (kind === "marquee") {
     gesture.endX = x;
     gesture.endY = y;
@@ -772,6 +914,10 @@ function finishGesture(event) {
       renderBase();
     }
     renderLive();
+  } else if (finished.kind === "resize") {
+    if (finished.resized) replaceShapes([finished.shape], () => finished.resized);
+    renderBase();
+    renderLive();
   } else if (finished.kind === "marquee" && finished.convert) {
     finishConvertBox(finished);
   } else if (finished.kind === "marquee") {
@@ -807,10 +953,11 @@ function continuePinch() {
 
 liveCanvas.addEventListener("pointerdown", (event) => {
   // A click outside the menu only closes it, so it can't leave a stray mark.
-  if (isMenuOpen() || isOptionsOpen()) {
+  if (isMenuOpen() || isOptionsOpen() || isColorPanelOpen()) {
     event.preventDefault();
     closeMenu();
     closeOptions();
+    closeColorPanel();
     return;
   }
   if (event.pointerType === "pen") {
@@ -868,7 +1015,8 @@ liveCanvas.addEventListener("pointerup", (event) => {
       scheduleSave();
     }
   } else if (gesture && event.pointerId === gesture.pointerId) {
-    const tapped = gesture.kind === "move" && !gesture.moved && selected.length === 1 ? selected[0] : null;
+    const stayedStill = (gesture.kind === "move" && !gesture.moved) || (gesture.kind === "resize" && !gesture.resized);
+    const tapped = stayedStill && selected.length === 1 ? selected[0] : null;
     finishGesture(event);
     if (event.pointerType !== "mouse" && tapped) noteTap(tapped);
   }
@@ -1070,6 +1218,17 @@ function placeFormatBar() {
   bar.style.top = `${Math.min(top, stage.height - bar.offsetHeight - 8)}px`;
 }
 
+function changeTextSize(direction) {
+  if (!textEditor) return;
+  const next = direction > 0 ? textEditor.fontSize * TEXT_SIZE_STEP : textEditor.fontSize / TEXT_SIZE_STEP;
+  textEditor.fontSize = Math.round(Math.min(MAX_TEXT_SIZE, Math.max(MIN_TEXT_SIZE, next)));
+  if (!textEditor.existing) chosenTextSize = textEditor.fontSize;
+  textEditor.input.style.fontSize = `${textEditor.fontSize * view.zoom}px`;
+  element("format-size").textContent = textEditor.fontSize;
+  textEditor.input.focus();
+  placeFormatBar();
+}
+
 function selectEditorContents(input) {
   const range = document.createRange();
   range.selectNodeContents(input);
@@ -1080,7 +1239,7 @@ function selectEditorContents(input) {
 
 function openTextEditor(point, existing = null) {
   const input = document.createElement("div");
-  const fontSize = existing ? existing.fontSize : SIZES[sizeIndex][2];
+  const fontSize = existing ? existing.fontSize : chosenTextSize || SIZES[sizeIndex][2];
   const textColor = existing ? existing.color : color;
   input.id = "text-input";
   input.contentEditable = "true";
@@ -1090,14 +1249,14 @@ function openTextEditor(point, existing = null) {
   input.setAttribute("aria-label", "Text for the board");
   input.style.left = `${point.x * view.zoom + view.x}px`;
   input.style.top = `${point.y * view.zoom + view.y}px`;
-  input.style.color = BACKGROUNDS[background].paint[textColor];
+  input.style.color = paintFor(textColor);
   input.style.fontSize = `${fontSize * view.zoom}px`;
   if (existing) input.style.fontFamily = familyOf(existing);
   input.addEventListener("input", () => placeFormatBar());
   input.addEventListener("keydown", (event) => {
     const command = event.ctrlKey || event.metaKey;
     // Ctrl+. still has to reach the page, while other keys belong to the text.
-    if (command && event.key === ".") return;
+    if (command && !event.shiftKey && event.key === ".") return;
     event.stopPropagation();
     if (event.key === "Escape" || (command && event.key === "Enter")) {
       event.preventDefault();
@@ -1108,10 +1267,20 @@ function openTextEditor(point, existing = null) {
     } else if (command && event.shiftKey && event.code === "Digit8") {
       event.preventDefault();
       applyFormat("insertUnorderedList");
+    } else if (command && event.shiftKey && (event.code === "Period" || event.code === "Comma")) {
+      event.preventDefault();
+      changeTextSize(event.code === "Period" ? 1 : -1);
     }
   });
   input.addEventListener("paste", (event) => {
     event.preventDefault();
+    // An image can't go inside text, so it joins the board as usual.
+    const pastedImage = imageFromClipboard(event.clipboardData);
+    if (pastedImage && !event.clipboardData.getData("text/plain")) {
+      closeTextEditor(true);
+      addImageFile(pastedImage);
+      return;
+    }
     document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
   });
   input.addEventListener("blur", () => {
@@ -1120,6 +1289,7 @@ function openTextEditor(point, existing = null) {
   });
   if (existing) fillEditor(input, textLines(existing));
   textEditor = { input, point, fontSize, color: textColor, existing };
+  element("format-size").textContent = fontSize;
   element("stage").append(input);
   if (existing) {
     renderBase(new Set([existing]));
@@ -1132,13 +1302,13 @@ function openTextEditor(point, existing = null) {
   updateFormatButtons();
 }
 
-function finishEditedText(existing, lines) {
-  const size = measureLines(lines, existing.fontSize, familyOf(existing));
+function finishEditedText(existing, lines, fontSize) {
+  const size = measureLines(lines, fontSize, familyOf(existing));
   if (!lines.length) {
     selected = selected.filter((shape) => shape !== existing);
     commit(shapes.filter((shape) => shape !== existing));
-  } else if (JSON.stringify(lines) !== JSON.stringify(textLines(existing))) {
-    replaceShapes([existing], ({ text, ...shape }) => ({ ...shape, lines, ...size }));
+  } else if (fontSize !== existing.fontSize || JSON.stringify(lines) !== JSON.stringify(textLines(existing))) {
+    replaceShapes([existing], ({ text, ...shape }) => ({ ...shape, lines, fontSize, ...size }));
   }
   renderAll();
 }
@@ -1151,7 +1321,7 @@ function closeTextEditor(keep) {
   input.remove();
   element("text-format").hidden = true;
   if (existing) {
-    if (keep) finishEditedText(existing, lines);
+    if (keep) finishEditedText(existing, lines, fontSize);
     else renderAll();
     return;
   }
@@ -1191,7 +1361,117 @@ for (const [id, command] of [["format-bold", "bold"], ["format-italic", "italic"
   element(id).addEventListener("click", () => applyFormat(command));
 }
 element("text-format").addEventListener("mousedown", (event) => event.preventDefault());
+element("format-smaller").addEventListener("click", () => changeTextSize(-1));
+element("format-bigger").addEventListener("click", () => changeTextSize(1));
 document.addEventListener("selectionchange", updateFormatButtons);
+
+/* Images */
+
+function imageFromClipboard(data) {
+  for (const item of data?.items || []) {
+    if (item.kind === "file" && item.type.startsWith("image/")) return item.getAsFile();
+  }
+  return null;
+}
+
+function decodeImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("unreadable"));
+    };
+    image.src = url;
+  });
+}
+
+// Shrinks an image to fit the sheet. Small images stay sharp PNGs, and larger ones become JPEGs on white.
+function compressImage(image) {
+  let side = Math.min(MAX_IMAGE_SIDE, Math.max(image.naturalWidth, image.naturalHeight));
+  for (;;) {
+    const scale = side / Math.max(image.naturalWidth, image.naturalHeight);
+    const canvas = Object.assign(document.createElement("canvas"), {
+      width: Math.max(1, Math.round(image.naturalWidth * scale)),
+      height: Math.max(1, Math.round(image.naturalHeight * scale)),
+    });
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const png = canvas.toDataURL("image/png");
+    if (png.length <= MAX_KEPT_PNG_LENGTH) return { src: png, width: canvas.width, height: canvas.height };
+    context.globalCompositeOperation = "destination-over";
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    const jpeg = canvas.toDataURL("image/jpeg", IMAGE_QUALITY);
+    if (jpeg.length <= MAX_IMAGE_LENGTH) return { src: jpeg, width: canvas.width, height: canvas.height };
+    side *= IMAGE_SHRINK;
+  }
+}
+
+function imagesLength() {
+  return shapes.reduce((total, shape) => total + (shape.src ? shape.src.length : 0), 0);
+}
+
+async function addImageFile(file) {
+  if (!currentBoard || !file) return;
+  if (!file.type.startsWith("image/") || file.size > MAX_IMAGE_FILE_BYTES) {
+    return showNotice("That file can't be added. Use an image smaller than 25 MB.");
+  }
+  let compressed;
+  try {
+    compressed = compressImage(await decodeImageFile(file));
+  } catch (error) {
+    return showNotice("That image couldn't be read. Try a JPEG or PNG.");
+  }
+  if (imagesLength() + compressed.src.length > MAX_CANVAS_IMAGES_LENGTH) {
+    return showNotice("This canvas has too many images to save online. Delete one, or start a new canvas.");
+  }
+  hideNotice();
+  const shrink = Math.min(1, (liveCanvas.clientWidth * NEW_IMAGE_SCREEN_SHARE) / view.zoom / compressed.width, (liveCanvas.clientHeight * NEW_IMAGE_SCREEN_SHARE) / view.zoom / compressed.height);
+  const width = compressed.width * shrink;
+  const height = compressed.height * shrink;
+  const left = (liveCanvas.clientWidth / 2 - view.x) / view.zoom - width / 2;
+  const top = (liveCanvas.clientHeight / 2 - view.y) / view.zoom - height / 2;
+  const shape = {
+    type: "image",
+    color: "ink",
+    size: 0,
+    src: compressed.src,
+    points: [roundPoint(left), roundPoint(top), roundPoint(left + width), roundPoint(top + height)],
+  };
+  commit([...shapes, shape]);
+  // Starts in Select, with the corners showing, so the image is ready to move or resize.
+  setTool("select");
+  setSelection([shape]);
+  renderBase();
+}
+
+element("color-custom").addEventListener("input", (event) => {
+  color = event.target.value;
+  updateControls();
+});
+element("color-custom").addEventListener("change", () => closeColorPanel());
+
+element("image-file").addEventListener("change", (event) => {
+  addImageFile(event.target.files[0]);
+  event.target.value = "";
+});
+document.addEventListener("paste", (event) => {
+  if (!currentBoard || event.target.matches?.("input, textarea, [contenteditable]")) return;
+  const file = imageFromClipboard(event.clipboardData);
+  if (!file) return;
+  event.preventDefault();
+  addImageFile(file);
+});
+element("stage").addEventListener("dragover", (event) => event.preventDefault());
+element("stage").addEventListener("drop", (event) => {
+  event.preventDefault();
+  addImageFile(event.dataTransfer.files[0]);
+});
 
 /* Handwriting to text */
 
@@ -1600,7 +1880,36 @@ function separator() {
   return Object.assign(document.createElement("span"), { className: "gap" });
 }
 
-const controlButtons = { tools: {}, colors: {}, sizes: [], backgrounds: {} };
+const controlButtons = { tools: {}, colors: {}, sizes: [], backgrounds: {}, palette: {} };
+
+function isColorPanelOpen() {
+  return !element("color-panel").hidden;
+}
+
+function closeColorPanel(returnFocus = false) {
+  element("color-panel").hidden = true;
+  controlButtons.moreColors.setAttribute("aria-expanded", "false");
+  if (returnFocus) controlButtons.moreColors.focus();
+}
+
+function toggleColorPanel() {
+  if (isColorPanelOpen()) return closeColorPanel();
+  closeMenu();
+  closeOptions();
+  const panel = element("color-panel");
+  panel.hidden = false;
+  controlButtons.moreColors.setAttribute("aria-expanded", "true");
+  // The toolbar scrolls sideways, so the panel lines up with the button from outside it.
+  const stage = element("stage").getBoundingClientRect();
+  const button = controlButtons.moreColors.getBoundingClientRect();
+  panel.style.left = `${Math.max(8, Math.min(button.left - stage.left - panel.offsetWidth / 2 + button.width / 2, stage.width - panel.offsetWidth - 8))}px`;
+}
+
+function chooseColor(value) {
+  color = value;
+  closeColorPanel();
+  updateControls();
+}
 
 function buildToolbar() {
   const bar = element("tools");
@@ -1608,7 +1917,8 @@ function buildToolbar() {
     controlButtons.tools[id] = makeToolButton(`${label} (${key.toUpperCase()})`, `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>`, () => setTool(id));
     bar.append(controlButtons.tools[id]);
   }
-  bar.append(separator());
+  controlButtons.image = makeToolButton("Add an image, or paste one with Ctrl+V", '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>', () => element("image-file").click());
+  bar.append(controlButtons.image, separator());
   for (const [name, value] of COLORS) {
     controlButtons.colors[value] = makeToolButton(name, '<span class="swatch"></span>', () => {
       color = value;
@@ -1616,10 +1926,21 @@ function buildToolbar() {
     });
     bar.append(controlButtons.colors[value]);
   }
-  bar.append(separator());
+  controlButtons.moreColors = makeToolButton("More colours", '<span class="swatch swatch-rainbow"></span>', toggleColorPanel);
+  controlButtons.moreColors.setAttribute("aria-expanded", "false");
+  controlButtons.moreColors.setAttribute("aria-controls", "color-panel");
+  bar.append(controlButtons.moreColors, separator());
+  for (const [name, value] of MORE_COLORS) {
+    const swatch = Object.assign(document.createElement("button"), { type: "button", title: name });
+    swatch.setAttribute("aria-label", name);
+    swatch.addEventListener("click", () => chooseColor(value));
+    controlButtons.palette[value] = swatch;
+    element("color-grid").append(swatch);
+  }
   SIZES.forEach(([name, , , dot], index) => {
     controlButtons.sizes[index] = makeToolButton(name, `<span class="dot" style="width:${dot}px;height:${dot}px"></span>`, () => {
       sizeIndex = index;
+      chosenTextSize = null;
       updateControls();
     });
     bar.append(controlButtons.sizes[index]);
@@ -1651,8 +1972,13 @@ function updateControls() {
   for (const [id, button] of Object.entries(controlButtons.tools)) button.setAttribute("aria-pressed", String(id === tool));
   for (const [value, button] of Object.entries(controlButtons.colors)) {
     button.setAttribute("aria-pressed", String(value === color));
-    button.firstChild.style.setProperty("--swatch", BACKGROUNDS[background].paint[value]);
+    button.firstChild.style.setProperty("--swatch", paintFor(value));
   }
+  for (const [value, swatch] of Object.entries(controlButtons.palette)) {
+    swatch.style.background = paintFor(value);
+    swatch.setAttribute("aria-pressed", String(value === color));
+  }
+  controlButtons.moreColors.setAttribute("aria-pressed", String(!COLORS.some(([, value]) => value === color)));
   for (const [id, button] of Object.entries(controlButtons.backgrounds)) button.setAttribute("aria-pressed", String(id === background));
   controlButtons.sizes.forEach((button, index) => button.setAttribute("aria-pressed", String(index === sizeIndex)));
   controlButtons.undo.disabled = !undoStack.length;
@@ -1683,6 +2009,10 @@ document.addEventListener("keydown", (event) => {
   }
   if (key === "escape" && isOptionsOpen()) {
     closeOptions(true);
+    return;
+  }
+  if (key === "escape" && isColorPanelOpen()) {
+    closeColorPanel(true);
     return;
   }
   if (event.target.matches?.("input, textarea, [contenteditable]")) return;
@@ -1751,12 +2081,14 @@ element("options-dot").addEventListener("click", () => {
   const open = !isOptionsOpen();
   closeTextEditor(true);
   closeMenu();
+  closeColorPanel();
   element("board-options").hidden = !open;
   element("options-dot").setAttribute("aria-expanded", String(open));
 });
 
 function openMenu() {
   closeOptions();
+  closeColorPanel();
   closeTextEditor(true);
   element("board-menu").hidden = false;
   element("menu-button").setAttribute("aria-expanded", "true");
@@ -1779,6 +2111,7 @@ function toggleTools() {
   if (hidden) {
     closeMenu();
     closeOptions();
+    closeColorPanel();
     hintTimer = setTimeout(() => { element("tools-hint").hidden = true; }, HINT_MS);
     if (!textEditor) document.activeElement?.blur();
   }
@@ -2319,7 +2652,7 @@ window.addEventListener("hashchange", route);
 
 /* Saving an image and presenting */
 
-element("export").addEventListener("click", () => {
+element("export").addEventListener("click", async () => {
   closeMenu();
   if (!shapes.length) return showNotice("This board is empty, so there's nothing to save yet.");
   element("board-notice").hidden = true;
@@ -2334,6 +2667,8 @@ element("export").addEventListener("click", () => {
   context.fillStyle = BACKGROUNDS[background].fill;
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.setTransform(scale, 0, 0, scale, -left * scale, -top * scale);
+  // Images that are off screen may not have finished loading yet.
+  await Promise.all(shapes.filter((shape) => shape.type === "image").map((shape) => imageFor(shape.src)?.decode().catch(() => {})));
   shapes.forEach((shape) => drawShape(context, shape));
   canvas.toBlob((blob) => {
     const link = Object.assign(document.createElement("a"), {
