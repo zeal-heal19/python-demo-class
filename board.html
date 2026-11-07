@@ -119,7 +119,7 @@
 <header class="topbar" id="library-bar" hidden>
   <div class="wrap">
     <h1>Teaching Boards</h1>
-    <div class="topbar-links"><a href="admin.html">Admin page</a></div>
+    <div class="topbar-links"><a href="code-lab.html">Code Lab</a><a href="admin.html">Admin page</a></div>
   </div>
 </header>
 <p id="board-notice" role="alert" hidden></p>
@@ -150,6 +150,7 @@
     <button class="btn secondary" id="to-folder" type="button">Back to folder</button>
     <button class="btn secondary" id="rename-board" type="button">Rename canvas</button>
     <button class="btn secondary" id="export" type="button">Export image</button>
+    <button class="btn secondary" id="open-code-lab" type="button">Open Code Lab in a new tab</button>
     <button class="btn secondary" id="hide-tools" type="button">Hide tools (Ctrl+.)</button>
     <button class="btn" id="present" type="button">Full screen</button>
     <a href="admin.html">Admin page</a>
@@ -2718,6 +2719,12 @@ element("export").addEventListener("click", async () => {
     link.click();
     URL.revokeObjectURL(link.href);
   });
+});
+
+// Opening it from here keeps the login, so the board and the code can sit in two tabs side by side.
+element("open-code-lab").addEventListener("click", () => {
+  closeMenu();
+  window.open("code-lab.html", "_blank");
 });
 
 element("present").addEventListener("click", () => {

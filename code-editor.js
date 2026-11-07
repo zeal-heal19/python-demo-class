@@ -14,15 +14,23 @@ const controlKeywordOverlay = {
 // Turns a textarea into a code editor with getValue() and setValue().
 function createCodeEditor(textarea) {
   if (!window.CodeMirror) {
-    return { getValue: () => textarea.value, setValue: (code) => { textarea.value = code; } };
+    return { getValue: () => textarea.value, setValue: (code) => { textarea.value = code; }, refresh() {}, focus: () => textarea.focus() };
   }
   // Tab indents in the editor. Press Escape first to move on with the keyboard.
   const editingKeys = {
     Tab(cm) {
+      // An open suggestion list takes Tab, as in VS Code.
+      if (cm.state.completionActive) return CodeMirror.Pass;
       if (cm.somethingSelected()) cm.indentSelection("add");
       else cm.replaceSelection("    ");
     },
-    Esc(cm) { cm.setOption("extraKeys", { ...editingKeys, Tab: false }); },
+    Esc(cm) {
+      if (cm.state.completionActive) {
+        cm.closeHint();
+        return;
+      }
+      cm.setOption("extraKeys", { ...editingKeys, Tab: false });
+    },
   };
   const editor = CodeMirror.fromTextArea(textarea, {
     mode: "python",
@@ -45,5 +53,8 @@ function createCodeEditor(textarea) {
       editor.setValue(code);
       editor.clearHistory();
     },
+    refresh: () => editor.refresh(),
+    focus: () => editor.focus(),
+    codeMirror: editor,
   };
 }

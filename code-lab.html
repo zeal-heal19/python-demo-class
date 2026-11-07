@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Lab | WeekendClasses</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="lab-layout.css">
+<link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="code-editor.css">
+<link rel="stylesheet" href="vendor/codemirror/show-hint.min.css">
+<style>
+  :root { --vs-bg: #1e1e1e; --vs-side: #252526; --vs-activity: #333333; --vs-title: #3c3c3c; --vs-tab: #2d2d2d; --vs-line: #3c3c3c; --vs-text: #cccccc;
+    --vs-muted: #8b8b8b; --vs-hover: #2a2d2e; --vs-select: #37373d; --vs-focus: #04395e; --vs-accent: #0078d4; --vs-status: #007acc; --sidebar: 240px; }
+  body { background: var(--vs-bg); color: var(--vs-text); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  button { font: inherit; }
+  svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+  .title-bar { flex: none; height: 30px; display: grid; place-items: center; background: var(--vs-title); color: var(--vs-text); font-size: 12px; border-bottom: 1px solid #2b2b2b; }
+  .shell { flex: 1; min-height: 0; display: grid; grid-template-columns: 48px var(--sidebar) minmax(0, 1fr); }
+  .shell.sidebar-hidden { grid-template-columns: 48px minmax(0, 1fr); }
+  .shell.sidebar-hidden .sidebar { display: none; }
+
+  .activity { display: flex; flex-direction: column; align-items: center; background: var(--vs-activity); }
+  .activity a, .activity button { width: 48px; height: 48px; display: grid; place-items: center; color: #858585; background: none; border: 0; border-left: 2px solid transparent; cursor: pointer; }
+  .activity a:hover, .activity button:hover { color: #fff; }
+  .activity [aria-pressed="true"] { color: #fff; border-left-color: #fff; }
+  .activity svg { width: 24px; height: 24px; stroke-width: 1.5; }
+  .activity .bottom { margin-top: auto; }
+
+  .sidebar { min-width: 0; display: flex; flex-direction: column; background: var(--vs-side); border-right: 1px solid #2b2b2b; }
+  .sidebar-title { flex: none; height: 35px; display: flex; align-items: center; padding: 0 8px 0 20px; color: #bbbbbb; font-size: 11px; letter-spacing: .04em; }
+  .section-head { flex: none; height: 22px; display: flex; align-items: center; gap: 2px; padding: 0 4px 0 6px; color: #cccccc; font-size: 11px; font-weight: 700; letter-spacing: .02em; cursor: pointer; }
+  .section-head .label { flex: 1; }
+  .icon-button { width: 22px; height: 22px; display: grid; place-items: center; padding: 0; background: none; border: 0; border-radius: 4px; color: #c5c5c5; cursor: pointer; }
+  .icon-button:hover { background: rgba(90, 93, 94, .31); }
+  .section-actions { display: flex; visibility: hidden; }
+  .sidebar:hover .section-actions, .section-actions:focus-within { visibility: visible; }
+  #explorer-tree { flex: 1; min-height: 0; overflow: auto; outline: 0; padding-bottom: 20px; }
+  .row { position: relative; height: 22px; display: flex; align-items: center; gap: 4px; padding-right: 6px; color: var(--vs-text); cursor: pointer; white-space: nowrap; }
+  .row:hover { background: var(--vs-hover); }
+  .row.selected { background: var(--vs-select); }
+  #explorer-tree:focus .row.selected { background: var(--vs-focus); outline: 1px solid var(--vs-accent); outline-offset: -1px; }
+  .twistie { flex: none; width: 16px; text-align: center; color: #c5c5c5; font-size: 10px; }
+  .file-icon { flex: none; width: 16px; text-align: center; font: 700 9px system-ui, sans-serif; color: #3d9fe0; }
+  .file-icon.py { color: #ffd43b; }
+  .folder-icon { flex: none; width: 16px; color: #dcb67a; }
+  .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .row-actions { display: none; }
+  .row:hover .row-actions, .row.selected .row-actions { display: flex; }
+  .rename-box { flex: 1; min-width: 0; height: 20px; padding: 0 4px; background: #3c3c3c; border: 1px solid var(--vs-accent); color: #fff; font: inherit; outline: 0; }
+  .rename-box.invalid { border-color: #be1100; }
+  .tree-error { margin: 2px 8px 2px 24px; padding: 4px 6px; background: #5a1d1d; border: 1px solid #be1100; color: #fff; font-size: 12px; }
+  .empty-explorer { padding: 8px 20px; color: var(--vs-muted); }
+
+  .main { min-width: 0; min-height: 0; display: grid; grid-template-rows: 35px 22px minmax(0, 1fr) 4px var(--terminal, 38%); }
+  .editor-tabs-bar { display: flex; min-width: 0; background: var(--vs-side); }
+  #file-tabs { flex: 1; min-width: 0; display: flex; overflow-x: auto; scrollbar-width: thin; }
+  .tab { flex: none; display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 6px 0 10px; background: var(--vs-tab); border-right: 1px solid #252526; color: #969696; cursor: pointer; white-space: nowrap; }
+  .tab[aria-selected="true"] { background: var(--vs-bg); color: #fff; box-shadow: inset 0 1px 0 var(--vs-accent); }
+  .tab button { width: 20px; height: 20px; padding: 0; background: none; border: 0; border-radius: 3px; color: inherit; font-size: 14px; line-height: 1; cursor: pointer; visibility: hidden; }
+  .tab[aria-selected="true"] button, .tab:hover button { visibility: visible; }
+  .tab button:hover { background: #4d4d4d; }
+  .editor-actions { flex: none; display: flex; align-items: center; gap: 2px; padding: 0 6px; }
+  .editor-actions .icon-button { width: 28px; height: 28px; }
+  #run { color: #89d185; }
+  #stop { color: #f48771; }
+  .editor-actions .icon-button[disabled] { color: #5a5a5a; cursor: default; background: none; }
+  .breadcrumbs { display: flex; align-items: center; gap: 4px; padding: 0 12px; background: var(--vs-bg); color: #a9a9a9; font-size: 12px; overflow: hidden; white-space: nowrap; }
+  #editor-area { min-height: 0; position: relative; background: var(--vs-bg); }
+  #editor-area .CodeMirror { position: absolute; inset: 0; height: auto; background: var(--vs-bg); color: #d4d4d4; font-family: var(--mono); font-size: var(--code-size, 16px); line-height: 1.5; }
+  .no-editor { position: absolute; inset: 0; display: grid; place-items: center; color: #6b6b6b; font-size: 14px; text-align: center; padding: 20px; }
+  #resizer { background: var(--vs-bg); border-top: 1px solid var(--vs-line); cursor: row-resize; touch-action: none; }
+  #resizer:hover, #resizer.dragging { background: var(--vs-accent); }
+
+  #terminal-area { min-height: 0; display: flex; flex-direction: column; background: var(--vs-bg); }
+  .terminal-head { flex: none; height: 35px; display: flex; align-items: center; gap: 6px; padding: 0 8px; }
+  .panel-title { padding: 0 8px; color: #e7e7e7; font-size: 11px; letter-spacing: .04em; border-bottom: 1px solid #e7e7e7; line-height: 26px; }
+  #terminal-tabs { flex: 1; min-width: 0; display: flex; overflow-x: auto; scrollbar-width: thin; }
+  #terminal-tabs .tab { height: 26px; background: none; border: 0; padding: 0 8px; }
+  #terminal-tabs .tab[aria-selected="true"] { background: var(--vs-hover); box-shadow: none; border-radius: 4px; }
+  .state-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vs-muted); }
+  .state-dot.running { background: #3794ff; }
+  .state-dot.ok { background: #89d185; }
+  .state-dot.failed { background: #f48771; }
+  .terminal-body { flex: 1; min-height: 0; display: flex; }
+  #terminal-output { flex: 1; min-width: 0; margin: 0; padding: 6px 16px 12px; overflow: auto; color: #ffffff; font: var(--code-size, 16px)/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+  #terminal-output .err { color: #f48771; }
+  #terminal-output .info { color: var(--vs-muted); }
+  #terminal-output .echo { color: #9cdcfe; }
+  /* Where input() is typed, straight after the prompt. */
+  .term-input { display: inline-block; min-width: 2ch; max-width: 100%; outline: none; color: #9cdcfe; caret-color: #fff; white-space: pre-wrap; vertical-align: top; }
+  .term-input:empty::after { content: "\2588"; color: #cccccc; animation: blink 1s steps(1) infinite; }
+  .term-input:focus:empty::after { content: ""; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .empty-terminal { color: var(--vs-muted); }
+
+  .status-bar { flex: none; height: 30px; display: flex; align-items: center; gap: 12px; padding: 0 10px; background: var(--vs-status); color: #fff; font-size: 12px; white-space: nowrap; overflow: hidden; }
+  .status-bar.running { background: #c46400; }
+  .status-bar .push { margin-left: auto; }
+  #status-state { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* Groups of bottom-bar buttons, with a line between groups. */
+  .status-bar .tools { flex: none; display: flex; align-items: center; gap: 10px; padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, .3); }
+  .status-bar .tools.push { margin-left: auto; padding-left: 0; border-left: 0; }
+  .status-bar .icon-button { width: 26px; height: 26px; padding: 0; color: #fff; }
+  .status-bar .icon-button svg { width: 18px; height: 18px; }
+  .status-bar .icon-button[disabled] { opacity: .45; cursor: default; background: none; }
+  .status-bar button { padding: 0 6px; height: 26px; border-radius: 4px; background: none; border: 0; color: #fff; cursor: pointer; }
+  .status-bar button:hover { background: rgba(255, 255, 255, .12); }
+
+  .CodeMirror-hints { z-index: 20; max-height: 280px; padding: 2px 0; background: #252526; border: 1px solid #454545; border-radius: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, .6); font: 13px var(--mono); }
+  .CodeMirror-hint { display: flex; align-items: center; gap: 8px; padding: 2px 8px; color: #cccccc; border-radius: 0; white-space: nowrap; }
+  li.CodeMirror-hint-active { background: #04395e; color: #fff; }
+  .hint-kind { flex: none; width: 58px; color: #75beff; font: 10px system-ui, sans-serif; text-transform: uppercase; letter-spacing: .03em; }
+  .hint-keyword { color: #c586c0; }
+  .hint-function, .hint-method { color: #dcdcaa; }
+  .hint-module { color: #4ec9b0; }
+  .hint-snippet { color: #d7ba7d; }
+  .hint-detail { margin-left: auto; padding-left: 16px; color: #8b8b8b; font-size: 12px; }
+  li.CodeMirror-hint-active .hint-detail { color: #c5c5c5; }
+
+  /* Fixed rows, so the pen canvas can lie over the editor, divider and terminal. */
+  .editor-tabs-bar { grid-row: 1; }
+  .breadcrumbs { grid-row: 2; }
+  #editor-area { grid-row: 3; grid-column: 1; }
+  #resizer { grid-row: 4; grid-column: 1; }
+  #terminal-area { grid-row: 5; grid-column: 1; }
+  #ink { grid-row: 3 / 6; grid-column: 1; position: relative; z-index: 4; width: 100%; height: 100%; pointer-events: none; touch-action: none; }
+  #ink.drawing { pointer-events: auto; cursor: crosshair; }
+  #ink-colors { display: flex; align-items: center; gap: 3px; padding: 0 4px; }
+  #ink-colors button { width: 16px; height: 16px; padding: 0; border: 1px solid rgba(255, 255, 255, .4); border-radius: 50%; cursor: pointer; }
+  #ink-colors button[aria-pressed="true"] { outline: 2px solid #fff; outline-offset: 1px; }
+  #pen[aria-pressed="true"] { background: rgba(255, 255, 255, .28); color: #fff; }
+  #ink-colors { gap: 8px; }
+
+  @media (max-width: 760px) {
+    .shell { grid-template-columns: 48px minmax(0, 1fr); }
+    .sidebar { position: fixed; z-index: 5; top: 30px; bottom: 30px; left: 48px; width: min(260px, calc(100vw - 60px)); box-shadow: 4px 0 16px rgba(0, 0, 0, .5); }
+    .shell.sidebar-hidden .sidebar { display: none; }
+    .section-actions, .row-actions { visibility: visible; display: flex; }
+    .status-bar .hide-small { display: none; }
+    .status-bar { gap: 8px; }
+    .status-bar .tools { gap: 6px; padding-left: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="title-bar">Code Lab — WeekendClasses</div>
+<div class="shell" id="shell">
+  <nav class="activity" aria-label="Activity bar">
+    <button id="toggle-explorer" type="button" title="Explorer" aria-label="Explorer" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></button>
+    <a href="board.html" title="Teaching Boards" aria-label="Teaching Boards"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="1"/><path d="M8 21l4-4 4 4"/></svg></a>
+    <a class="bottom" href="admin.html" title="Admin page" aria-label="Admin page"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg></a>
+  </nav>
+
+  <aside class="sidebar" id="sidebar" aria-label="Explorer">
+    <div class="sidebar-title">EXPLORER</div>
+    <div class="section-head" id="section-head">
+      <span class="twistie" aria-hidden="true">▾</span>
+      <span class="label">CODE LAB</span>
+      <span class="section-actions">
+        <button class="icon-button" id="new-file" type="button" title="New File..." aria-label="New file"><svg viewBox="0 0 24 24"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z"/><path d="M13 3v6h6M12 12v6M9 15h6"/></svg></button>
+        <button class="icon-button" id="new-folder" type="button" title="New Folder..." aria-label="New folder"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13h6"/></svg></button>
+        <button class="icon-button" id="collapse-all" type="button" title="Collapse Folders in Explorer" aria-label="Collapse folders"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8"/></svg></button>
+      </span>
+    </div>
+    <div id="explorer-tree" role="tree" tabindex="0" aria-label="Files and folders"></div>
+  </aside>
+
+  <main class="main" id="workbench">
+    <div class="editor-tabs-bar">
+      <div id="file-tabs" role="tablist" aria-label="Open files"></div>
+      <div class="editor-actions">
+        <button class="icon-button" id="run" type="button" title="Run Python File (Ctrl+Enter)" aria-label="Run Python file"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg></button>
+        <button class="icon-button" id="stop" type="button" title="Stop" aria-label="Stop" disabled><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" fill="currentColor"/></svg></button>
+      </div>
+    </div>
+    <div class="breadcrumbs" id="breadcrumbs"></div>
+    <div id="editor-area">
+      <textarea id="code" aria-label="Python code editor" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <div class="no-editor" id="no-editor" hidden>Open a file from the Explorer, or click New File.</div>
+    </div>
+    <canvas id="ink" hidden aria-label="Pen drawing over the code"></canvas>
+    <div id="resizer" role="separator" aria-orientation="horizontal" aria-label="Resize the terminal" tabindex="0"></div>
+    <section id="terminal-area" aria-label="Terminals">
+      <div class="terminal-head">
+        <span class="panel-title">TERMINAL</span>
+        <div id="terminal-tabs" role="tablist" aria-label="Terminals"></div>
+        <button class="icon-button" id="clear-terminals" type="button" title="Clear Terminal" aria-label="Clear terminal"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+      </div>
+      <div class="terminal-body">
+        <pre id="terminal-output" tabindex="0" aria-live="polite"></pre>
+      </div>
+    </section>
+  </main>
+</div>
+<footer class="status-bar" id="status-bar">
+  <span id="status-state">Python ready</span>
+  <span class="hide-small">Python 3 (in your browser)</span>
+  <span class="push tools">
+    <span id="ink-colors" hidden></span>
+    <button class="icon-button" id="pen" type="button" title="Pen: draw over the code (Esc to stop)" aria-label="Pen" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 20l1-5L16 4l4 4L9 19z"/></svg></button>
+    <button class="icon-button" id="clear-ink" type="button" title="Clear pen drawing" aria-label="Clear pen drawing" disabled><svg viewBox="0 0 24 24"><path d="M8 20l-5-5L14 4l7 7-9 9zM8 20h13"/></svg></button>
+  </span>
+  <span class="tools">
+    <button class="icon-button" id="download" type="button" title="Download this file" aria-label="Download this file"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
+  </span>
+  <span class="tools">
+    <button id="smaller" type="button" title="Smaller code" aria-label="Smaller code">A−</button>
+    <span id="font-size"></span>
+    <button id="bigger" type="button" title="Bigger code" aria-label="Bigger code">A+</button>
+  </span>
+</footer>
+
+<script src="vendor/codemirror/codemirror.min.js"></script>
+<script src="vendor/codemirror/python.min.js"></script>
+<script src="vendor/codemirror/show-hint.min.js"></script>
+<script src="vendor/codemirror/closebrackets.min.js"></script>
+<script src="vendor/codemirror/matchbrackets.min.js"></script>
+<script src="python-hints.js"></script>
+<script src="admin-api.js"></script>
+<script src="code-editor.js"></script>
+<script src="python-runner.js"></script>
+<script>
+// Only the admin uses this page. The code runs in this browser and is never sent anywhere.
+if (!getAdminToken()) location.replace("admin.html");
+
+const element = (id) => document.getElementById(id);
+const TREE_KEY = "code-lab-tree";
+const OLD_FILES_KEY = "code-lab-files";
+const PREFERENCES_KEY = "code-lab-preferences";
+const SAVE_DELAY_MS = 400;
+// Older output is dropped beyond this, so a long class doesn't slow the page.
+const MAX_TERMINAL_PIECES = 4000;
+const RUN_LIMIT_SECONDS = 60;
+const MIN_CODE_SIZE = 12;
+const MAX_CODE_SIZE = 40;
+const CODE_SIZE_STEP = 2;
+const MIN_TERMINAL_SHARE = 15;
+const MAX_TERMINAL_SHARE = 80;
+const INDENT_PX = 12;
+const MAX_NAME_LENGTH = 60;
+const STARTER = '# Write Python here and press Ctrl+Enter to run it\nname = "WeekendClasses"\nprint(f"Hello from {name}!")\n';
+
+
+// Items are files and folders in a flat list. Each one names its parent folder, or null at the top.
+let items = [];
+let openTabs = [];
+let activeFileId = null;
+let selectedId = null;
+let collapsed = new Set();
+let editing = null;
+let terminals = [];
+let currentTerminal = null;
+let worker = null;
+let workerReady = false;
+let running = null;
+let saveTimer = null;
+let nextTerminal = 1;
+// Nothing is saved until the files have loaded, so leaving a half-open page can't wipe them.
+let loaded = false;
+let preferences = { codeSize: 16, terminalShare: 38, sidebar: true };
+const editor = createCodeEditor(element("code"));
+if (editor.codeMirror) {
+  editor.codeMirror.setOption("autoCloseBrackets", true);
+  editor.codeMirror.setOption("matchBrackets", true);
+  editor.codeMirror.addKeyMap({ "Ctrl-Space": (cm) => cm.showHint(), "Cmd-I": (cm) => cm.showHint() });
+  enablePythonHints(editor.codeMirror);
+}
+
+function readStored(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) || fallback;
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function store(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // The lab still works for this visit when the browser blocks storage.
+  }
+}
+
+/* Files and folders */
+
+const itemById = (id) => items.find((item) => item.id === id);
+const childrenOf = (parentId) => items
+  .filter((item) => item.parent === parentId)
+  .sort((first, second) => (first.type === second.type ? first.name.localeCompare(second.name, undefined, { numeric: true }) : first.type === "folder" ? -1 : 1));
+
+function pathOf(item) {
+  const parts = [];
+  for (let current = item; current; current = itemById(current.parent)) parts.unshift(current.name);
+  return parts;
+}
+
+function makeId() {
+  return `i${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function saveSoon() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveAll, SAVE_DELAY_MS);
+}
+
+function saveAll() {
+  clearTimeout(saveTimer);
+  if (!loaded) return;
+  const file = itemById(activeFileId);
+  if (file) file.code = editor.getValue();
+  store(TREE_KEY, { items, openTabs, activeFileId, collapsed: [...collapsed] });
+}
+
+// Folder for a new item: the selected folder, or the folder that holds the selected file.
+function targetFolder() {
+  const selectedItem = itemById(selectedId);
+  if (!selectedItem) return null;
+  return selectedItem.type === "folder" ? selectedItem.id : selectedItem.parent;
+}
+
+function nameProblem(name, parent, ignoreId) {
+  if (!name) return "A file or folder name must be provided.";
+  if (name.length > MAX_NAME_LENGTH) return "That name is too long.";
+  if (!/^[\w][\w .-]*$/.test(name)) return "Use letters, numbers, spaces, dots, dashes or underscores.";
+  if (items.some((item) => item.parent === parent && item.id !== ignoreId && item.name.toLowerCase() === name.toLowerCase())) {
+    return `A file or folder ${name} already exists at this location.`;
+  }
+  return null;
+}
+
+function startCreating(type) {
+  const parent = targetFolder();
+  if (parent) collapsed.delete(parent);
+  editing = { mode: "create", type, parent, error: null };
+  renderTree();
+}
+
+function startRenaming(item) {
+  editing = { mode: "rename", type: item.type, id: item.id, parent: item.parent, error: null };
+  renderTree();
+}
+
+function finishEditing(value, keep) {
+  if (!editing) return;
+  const current = editing;
+  const name = value.trim();
+  if (!keep || (current.mode === "create" && !name)) {
+    editing = null;
+    renderTree();
+    return;
+  }
+  let finalName = name;
+  if (current.mode === "create" && current.type === "file" && !finalName.includes(".")) finalName += ".py";
+  const problem = nameProblem(finalName, current.parent, current.id);
+  if (problem) {
+    editing = { ...current, error: problem, value: name };
+    renderTree();
+    return;
+  }
+  editing = null;
+  if (current.mode === "create") {
+    const item = { id: makeId(), type: current.type, name: finalName, parent: current.parent };
+    if (current.type === "file") item.code = "";
+    items.push(item);
+    selectedId = item.id;
+    saveAll();
+    if (item.type === "file") openFile(item.id);
+    else renderTree();
+  } else {
+    itemById(current.id).name = finalName;
+    saveAll();
+    renderTree();
+    renderTabs();
+  }
+}
+
+function descendantsOf(id) {
+  const found = [];
+  for (const child of items.filter((item) => item.parent === id)) found.push(child, ...descendantsOf(child.id));
+  return found;
+}
+
+function deleteItem(item) {
+  const inside = item.type === "folder" ? descendantsOf(item.id) : [];
+  const question = item.type === "folder"
+    ? `Delete the folder "${item.name}" and everything in it? This can't be undone. Download any files you want to keep first.`
+    : `Delete "${item.name}"? This can't be undone. Download it first if you want to keep it.`;
+  if (!confirm(question)) return;
+  saveAll();
+  const gone = new Set([item.id, ...inside.map(({ id }) => id)]);
+  items = items.filter(({ id }) => !gone.has(id));
+  openTabs = openTabs.filter((id) => !gone.has(id));
+  if (gone.has(activeFileId)) activeFileId = openTabs[openTabs.length - 1] || null;
+  if (gone.has(selectedId)) selectedId = null;
+  showActiveFile();
+  saveAll();
+}
+
+function rowIcon(item) {
+  if (item.type === "folder") {
+    return Object.assign(document.createElement("span"), { className: "folder-icon", innerHTML: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>' });
+  }
+  const python = item.name.endsWith(".py");
+  return Object.assign(document.createElement("span"), { className: `file-icon${python ? " py" : ""}`, textContent: python ? "py" : "≡" });
+}
+
+function iconButton(label, svg, action) {
+  const button = Object.assign(document.createElement("button"), { type: "button", className: "icon-button", title: label, innerHTML: svg });
+  button.setAttribute("aria-label", label);
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    action();
+  });
+  return button;
+}
+
+function renameBox(depth, type) {
+  const row = Object.assign(document.createElement("div"), { className: "row" });
+  row.style.paddingLeft = `${8 + depth * INDENT_PX}px`;
+  const input = Object.assign(document.createElement("input"), { className: `rename-box${editing.error ? " invalid" : ""}`, value: editing.value ?? (editing.mode === "rename" ? itemById(editing.id).name : "") });
+  input.setAttribute("aria-label", editing.mode === "create" ? `New ${type} name` : "New name");
+  let settled = false;
+  input.addEventListener("keydown", (event) => {
+    event.stopPropagation();
+    if (event.key === "Enter") {
+      // Otherwise the same Enter also lands in the file that opens, as a blank first line.
+      event.preventDefault();
+      settled = true;
+      finishEditing(input.value, true);
+    } else if (event.key === "Escape") {
+      settled = true;
+      finishEditing(input.value, false);
+    }
+  });
+  input.addEventListener("blur", () => {
+    // Redrawing the tree removes this box, which shouldn't count as finishing.
+    if (!settled && input.isConnected) finishEditing(input.value, true);
+  });
+  row.append(Object.assign(document.createElement("span"), { className: "twistie", textContent: type === "folder" ? "›" : "" }), rowIcon({ type, name: input.value || ".py" }), input);
+  const nodes = [row];
+  if (editing.error) nodes.push(Object.assign(document.createElement("div"), { className: "tree-error", textContent: editing.error, role: "alert" }));
+  queueMicrotask(() => {
+    input.focus();
+    const dot = input.value.lastIndexOf(".");
+    input.setSelectionRange(0, editing?.mode === "rename" && dot > 0 ? dot : input.value.length);
+  });
+  return nodes;
+}
+
+function treeRows(parentId, depth) {
+  const rows = [];
+  if (editing?.mode === "create" && editing.parent === parentId && editing.type === "folder") rows.push(...renameBox(depth, "folder"));
+  const children = childrenOf(parentId);
+  const firstFile = children.findIndex((item) => item.type === "file");
+  children.forEach((item, index) => {
+    if (editing?.mode === "create" && editing.parent === parentId && editing.type === "file" && index === (firstFile === -1 ? children.length : firstFile)) {
+      rows.push(...renameBox(depth, "file"));
+    }
+    if (editing?.mode === "rename" && editing.id === item.id) {
+      rows.push(...renameBox(depth, item.type));
+    } else {
+      rows.push(treeRow(item, depth));
+    }
+    if (item.type === "folder" && !collapsed.has(item.id)) rows.push(...treeRows(item.id, depth + 1));
+  });
+  if (editing?.mode === "create" && editing.parent === parentId && editing.type === "file" && firstFile === -1) rows.push(...renameBox(depth, "file"));
+  return rows;
+}
+
+function treeRow(item, depth) {
+  const row = Object.assign(document.createElement("div"), { className: `row${item.id === selectedId ? " selected" : ""}`, title: pathOf(item).join("/") });
+  row.setAttribute("role", "treeitem");
+  if (item.type === "folder") row.setAttribute("aria-expanded", String(!collapsed.has(item.id)));
+  row.style.paddingLeft = `${8 + depth * INDENT_PX}px`;
+  const twistie = Object.assign(document.createElement("span"), { className: "twistie", textContent: item.type === "folder" ? (collapsed.has(item.id) ? "›" : "⌄") : "" });
+  const name = Object.assign(document.createElement("span"), { className: "name", textContent: item.name });
+  const actions = Object.assign(document.createElement("span"), { className: "row-actions" });
+  actions.append(
+    iconButton("Rename", '<svg viewBox="0 0 24 24"><path d="M4 20l1-5L16 4l4 4L9 19z"/></svg>', () => startRenaming(item)),
+    iconButton("Delete", '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>', () => deleteItem(item)),
+  );
+  row.append(twistie, rowIcon(item), name, actions);
+  row.addEventListener("click", () => {
+    selectedId = item.id;
+    if (item.type === "folder") {
+      if (collapsed.has(item.id)) collapsed.delete(item.id);
+      else collapsed.add(item.id);
+      saveAll();
+      renderTree();
+    } else {
+      openFile(item.id);
+    }
+  });
+  return row;
+}
+
+function renderTree() {
+  const tree = element("explorer-tree");
+  const rows = treeRows(null, 0);
+  if (!items.length && !editing) rows.push(Object.assign(document.createElement("div"), { className: "empty-explorer", textContent: "No files yet. Click New File." }));
+  tree.replaceChildren(...rows);
+}
+
+/* Open files */
+
+function renderTabs() {
+  element("file-tabs").replaceChildren(...openTabs.map((id) => {
+    const file = itemById(id);
+    const tab = Object.assign(document.createElement("div"), { className: "tab", title: pathOf(file).join("/") });
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-selected", String(id === activeFileId));
+    const close = Object.assign(document.createElement("button"), { type: "button", textContent: "×" });
+    close.setAttribute("aria-label", `Close ${file.name}`);
+    close.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeTab(id);
+    });
+    tab.append(rowIcon(file), Object.assign(document.createElement("span"), { textContent: file.name }), close);
+    tab.addEventListener("click", () => openFile(id));
+    return tab;
+  }));
+  const file = itemById(activeFileId);
+  element("breadcrumbs").textContent = file ? pathOf(file).join("  ›  ") : "";
+}
+
+function showActiveFile() {
+  const file = itemById(activeFileId);
+  element("no-editor").hidden = Boolean(file);
+  element("editor-area").querySelector(".CodeMirror")?.style.setProperty("visibility", file ? "visible" : "hidden");
+  editor.setValue(file ? file.code : "");
+  element("run").disabled = !file || Boolean(running);
+  element("download").disabled = !file;
+  renderTabs();
+  renderTree();
+  if (file) editor.refresh();
+}
+
+function openFile(id) {
+  saveAll();
+  if (!openTabs.includes(id)) openTabs.push(id);
+  activeFileId = id;
+  selectedId = id;
+  showActiveFile();
+  saveAll();
+  editor.focus();
+}
+
+function closeTab(id) {
+  saveAll();
+  openTabs = openTabs.filter((tabId) => tabId !== id);
+  if (activeFileId === id) activeFileId = openTabs[openTabs.length - 1] || null;
+  showActiveFile();
+  saveAll();
+}
+
+element("new-file").addEventListener("click", (event) => {
+  event.stopPropagation();
+  startCreating("file");
+});
+element("new-folder").addEventListener("click", (event) => {
+  event.stopPropagation();
+  startCreating("folder");
+});
+element("collapse-all").addEventListener("click", (event) => {
+  event.stopPropagation();
+  items.filter(({ type }) => type === "folder").forEach(({ id }) => collapsed.add(id));
+  saveAll();
+  renderTree();
+});
+element("section-head").addEventListener("click", () => {
+  selectedId = null;
+  renderTree();
+});
+element("explorer-tree").addEventListener("keydown", (event) => {
+  const item = itemById(selectedId);
+  if (!item || editing) return;
+  if (event.key === "F2") {
+    event.preventDefault();
+    startRenaming(item);
+  } else if (event.key === "Delete") {
+    event.preventDefault();
+    deleteItem(item);
+  }
+});
+element("toggle-explorer").addEventListener("click", () => {
+  preferences.sidebar = !preferences.sidebar;
+  store(PREFERENCES_KEY, preferences);
+  applyPreferences();
+});
+
+element("download").addEventListener("click", () => {
+  saveAll();
+  const file = itemById(activeFileId);
+  if (!file) return;
+  const link = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(new Blob([file.code], { type: "text/x-python" })),
+    download: file.name,
+  });
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+
+/* Terminals: every run opens its own, so earlier output stays available during a session */
+
+function terminalStateClass(terminal) {
+  return { running: "running", ok: "ok", failed: "failed", stopped: "failed" }[terminal.state];
+}
+
+function renderTerminalTabs() {
+  element("terminal-tabs").replaceChildren(...terminals.map((terminal) => {
+    const tab = Object.assign(document.createElement("div"), { className: "tab" });
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-selected", String(terminal === currentTerminal));
+    const dot = Object.assign(document.createElement("span"), { className: `state-dot ${terminalStateClass(terminal)}` });
+    const name = Object.assign(document.createElement("span"), { textContent: terminal.title });
+    tab.append(dot, name);
+    return tab;
+  }));
+}
+
+function showTerminal(terminal) {
+  currentTerminal = terminal;
+  const output = element("terminal-output");
+  if (terminal) output.replaceChildren(terminal.body);
+  else output.replaceChildren(Object.assign(document.createElement("span"), { className: "empty-terminal", textContent: "Press ▶ or Ctrl+Enter to run the open file. Its output appears here." }));
+  output.scrollTop = output.scrollHeight;
+  renderTerminalTabs();
+}
+
+function write(terminal, text, kind = "") {
+  if (!text) return;
+  const piece = kind ? Object.assign(document.createElement("span"), { className: kind, textContent: text }) : document.createTextNode(text);
+  terminal.body.append(piece);
+  while (terminal.body.childNodes.length > MAX_TERMINAL_PIECES) terminal.body.firstChild.remove();
+  if (terminal === currentTerminal) {
+    const output = element("terminal-output");
+    output.scrollTop = output.scrollHeight;
+  }
+}
+
+// There is one terminal, as in VS Code, and every run adds to it.
+function newTerminal(path) {
+  nextTerminal++;
+  let terminal = terminals[0];
+  if (!terminal) {
+    terminal = { title: "python", body: document.createElement("div"), state: "running" };
+    terminals = [terminal];
+  }
+  terminal.state = "running";
+  write(terminal, `${terminal.body.childNodes.length ? "\n" : ""}PS Code Lab> python ${path}   (${new Date().toLocaleTimeString()})\n`, "info");
+  showTerminal(terminal);
+  return terminal;
+}
+
+// Clears the screen, like VS Code's Clear Terminal. A running program keeps running.
+element("clear-terminals").addEventListener("click", () => {
+  const terminal = terminals[0];
+  if (!terminal) return;
+  terminal.body.replaceChildren(...(running?.input ? [running.input.box] : []));
+  if (running) showTerminal(terminal);
+  else {
+    terminals = [];
+    showTerminal(null);
+  }
+  running?.input?.box.focus();
+});
+
+/* Running Python */
+
+function startWorker() {
+  workerReady = false;
+  worker = new Worker("code-lab-worker.js");
+  worker.onmessage = ({ data }) => onWorkerMessage(data);
+  worker.postMessage({ pyodideUrl: PYODIDE_URL });
+  worker.onerror = () => {
+    if (running) finishRun("failed", "Python couldn't load. Check your connection and try again.");
+    worker = null;
+  };
+}
+
+function onWorkerMessage(data) {
+  if (!running) return;
+  const { terminal } = running;
+  if (data.info) write(terminal, `${data.info}\n`, "info");
+  if (data.started) {
+    workerReady = true;
+    running.startedAt = performance.now();
+  }
+  if (data.out) write(terminal, data.out);
+  if (data.err) write(terminal, data.err, "err");
+  if (data.waitingForInput) askForInput(data.waitingForInput);
+  if (data.inputUnavailable) running.inputUnavailable = true;
+  if (data.done) {
+    if (data.error) {
+      const message = running.inputUnavailable
+        ? "input() couldn't read from the terminal. Reload the page with F5, not Shift+F5, and run again."
+        : friendlyError(data.error);
+      finishRun("failed", message);
+    } else {
+      finishRun("ok");
+    }
+  }
+}
+
+function setRunning(isRunning) {
+  element("run").disabled = isRunning || !itemById(activeFileId);
+  element("stop").disabled = !isRunning;
+  element("status-bar").classList.toggle("running", isRunning);
+  element("status-state").textContent = isRunning ? `Running ${running.path}...` : "Python ready";
+}
+
+/* input(): the worker waits while the user types a line in the terminal. */
+
+const inputHelper = "serviceWorker" in navigator
+  ? navigator.serviceWorker.register("code-lab-sw.js", { scope: "./code-lab" }).then(() => navigator.serviceWorker.ready).catch(() => null)
+  : Promise.resolve(null);
+
+function sendToHelper(message) {
+  inputHelper.then((registration) => registration?.active?.postMessage(message));
+}
+
+function startLimitTimer() {
+  clearTimeout(running.limitTimer);
+  running.limitTimer = setTimeout(() => stopRun(`Stopped after ${RUN_LIMIT_SECONDS} seconds. Check for an endless loop.`), RUN_LIMIT_SECONDS * 1000);
+}
+
+function askForInput(id) {
+  // Time spent typing doesn't count towards the run limit.
+  clearTimeout(running.limitTimer);
+  const box = Object.assign(document.createElement("span"), { className: "term-input", contentEditable: "true", spellcheck: false });
+  box.setAttribute("role", "textbox");
+  box.setAttribute("aria-label", "Type the input and press Enter");
+  box.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && !getSelection().toString()) {
+      event.preventDefault();
+      stopRun("^C");
+      return;
+    }
+    if (event.key !== "Enter" || event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    const text = box.textContent.replace(/\r?\n/g, "");
+    box.replaceWith(Object.assign(document.createElement("span"), { className: "echo", textContent: `${text}\n` }));
+    running.typingTime += performance.now() - running.input.since;
+    running.input = null;
+    element("status-state").textContent = `Running ${running.path}...`;
+    startLimitTimer();
+    sendToHelper({ type: "stdin", id, text });
+  });
+  // Pasted text arrives as plain text, without the copied formatting.
+  box.addEventListener("paste", (event) => {
+    event.preventDefault();
+    document.execCommand("insertText", false, event.clipboardData.getData("text/plain").split(/\r?\n/)[0]);
+  });
+  running.input = { id, box, since: performance.now() };
+  running.terminal.body.append(box);
+  element("status-state").textContent = "Waiting for input in the terminal...";
+  if (running.terminal === currentTerminal) {
+    element("terminal-output").scrollTop = element("terminal-output").scrollHeight;
+    box.focus();
+  }
+}
+
+// Clicking anywhere in the terminal goes to the waiting input.
+element("terminal-output").addEventListener("click", () => {
+  const box = running?.input?.box;
+  if (box && running.terminal === currentTerminal && !getSelection().toString()) box.focus();
+});
+
+function finishRun(state, message = "") {
+  if (!running) return;
+  const { terminal, startedAt, limitTimer, typingTime } = running;
+  clearTimeout(limitTimer);
+  running = null;
+  terminal.state = state;
+  if (message) write(terminal, `${terminal.body.textContent.endsWith("\n") ? "" : "\n"}${message}\n`, "err");
+  const seconds = startedAt ? ` in ${((performance.now() - startedAt - typingTime) / 1000).toFixed(2)} s` : "";
+  const ending = { ok: `Finished${seconds}.`, failed: `Stopped with an error${seconds}.`, stopped: "Stopped." }[state];
+  write(terminal, `\n${ending}\n`, "info");
+  setRunning(false);
+  renderTerminalTabs();
+}
+
+function stopRun(message) {
+  if (!running) return;
+  if (running.input) {
+    sendToHelper({ type: "cancel", id: running.input.id });
+    running.input.box.replaceWith(document.createTextNode(running.input.box.textContent));
+  }
+  worker?.terminate();
+  worker = null;
+  finishRun("stopped", message);
+  // Starts a fresh Python straight away, so the next run doesn't wait.
+  startWorker();
+}
+
+function runCode() {
+  const file = itemById(activeFileId);
+  if (running || !file) return;
+  saveAll();
+  const path = pathOf(file).join("/");
+  const terminal = newTerminal(path);
+  if (!worker) startWorker();
+  if (!workerReady) write(terminal, "Starting Python...\n", "info");
+  running = { terminal, path, startedAt: null, limitTimer: null, input: null, typingTime: 0 };
+  startLimitTimer();
+  setRunning(true);
+  renderTerminalTabs();
+  worker.postMessage({ code: file.code, runId: `${Date.now()}-${nextTerminal}` });
+}
+
+element("run").addEventListener("click", runCode);
+element("stop").addEventListener("click", () => stopRun("Stopped."));
+
+/* Pen: drawing over the code and terminal while teaching. It isn't saved. */
+
+const INK_COLORS = [["Red", "#f14c4c"], ["Yellow", "#ffd43b"], ["Blue", "#3794ff"], ["Green", "#89d185"], ["White", "#ffffff"]];
+const INK_WIDTH = 2;
+const ink = element("ink");
+const inkContext = ink.getContext("2d");
+let inkOn = false;
+let inkColor = INK_COLORS[0][1];
+let inkStrokes = [];
+let inkStroke = null;
+let inkPenSeen = false;
+
+function sizeInk() {
+  const ratio = window.devicePixelRatio || 1;
+  ink.width = Math.round(ink.clientWidth * ratio);
+  ink.height = Math.round(ink.clientHeight * ratio);
+  drawInk();
+}
+
+function traceStroke({ color, points }) {
+  inkContext.strokeStyle = color;
+  inkContext.fillStyle = color;
+  inkContext.lineWidth = INK_WIDTH;
+  inkContext.lineCap = "round";
+  inkContext.lineJoin = "round";
+  inkContext.beginPath();
+  if (points.length === 1) {
+    inkContext.arc(points[0][0], points[0][1], INK_WIDTH / 2, 0, Math.PI * 2);
+    inkContext.fill();
+    return;
+  }
+  inkContext.moveTo(...points[0]);
+  points.slice(1).forEach((point) => inkContext.lineTo(...point));
+  inkContext.stroke();
+}
+
+function drawInk() {
+  const ratio = window.devicePixelRatio || 1;
+  inkContext.setTransform(1, 0, 0, 1, 0, 0);
+  inkContext.clearRect(0, 0, ink.width, ink.height);
+  inkContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+  inkStrokes.forEach(traceStroke);
+  if (inkStroke) traceStroke(inkStroke);
+}
+
+function updateInkControls() {
+  ink.hidden = !inkOn && !inkStrokes.length;
+  ink.classList.toggle("drawing", inkOn);
+  element("pen").setAttribute("aria-pressed", String(inkOn));
+  element("ink-colors").hidden = !inkOn;
+  element("clear-ink").disabled = !inkStrokes.length;
+  element("ink-colors").querySelectorAll("button").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.color === inkColor)));
+}
+
+function setInk(on) {
+  inkOn = on;
+  updateInkControls();
+  if (!ink.hidden) sizeInk();
+  if (!on) editor.focus();
+}
+
+for (const [name, value] of INK_COLORS) {
+  const swatch = Object.assign(document.createElement("button"), { type: "button", title: name });
+  swatch.dataset.color = value;
+  swatch.style.background = value;
+  swatch.setAttribute("aria-label", `${name} pen`);
+  swatch.addEventListener("click", () => {
+    inkColor = value;
+    updateInkControls();
+  });
+  element("ink-colors").append(swatch);
+}
+
+element("pen").addEventListener("click", () => setInk(!inkOn));
+element("clear-ink").addEventListener("click", () => {
+  inkStrokes = [];
+  inkStroke = null;
+  updateInkControls();
+  drawInk();
+});
+
+function inkPoint(event) {
+  const box = ink.getBoundingClientRect();
+  return [event.clientX - box.left, event.clientY - box.top];
+}
+
+ink.addEventListener("pointerdown", (event) => {
+  if (!inkOn) return;
+  if (event.pointerType === "pen") inkPenSeen = true;
+  // After a pencil has been used, a resting palm shouldn't draw.
+  if (event.pointerType === "touch" && inkPenSeen) return;
+  event.preventDefault();
+  inkStroke = { color: inkColor, points: [inkPoint(event)], pointerId: event.pointerId };
+  try {
+    ink.setPointerCapture(event.pointerId);
+  } catch (error) {
+    // The stroke still finishes when the pointer lifts.
+  }
+  drawInk();
+});
+ink.addEventListener("pointermove", (event) => {
+  if (!inkStroke || event.pointerId !== inkStroke.pointerId) return;
+  const samples = event.getCoalescedEvents?.().length ? event.getCoalescedEvents() : [event];
+  samples.forEach((sample) => inkStroke.points.push(inkPoint(sample)));
+  drawInk();
+});
+for (const type of ["pointerup", "pointercancel"]) {
+  ink.addEventListener(type, (event) => {
+    if (!inkStroke || event.pointerId !== inkStroke.pointerId) return;
+    inkStrokes.push({ color: inkStroke.color, points: inkStroke.points });
+    inkStroke = null;
+    updateInkControls();
+    drawInk();
+  });
+}
+new ResizeObserver(() => { if (!ink.hidden) sizeInk(); }).observe(ink);
+
+/* Layout and keyboard */
+
+function applyPreferences() {
+  document.documentElement.style.setProperty("--code-size", `${preferences.codeSize}px`);
+  element("workbench").style.setProperty("--terminal", `${preferences.terminalShare}%`);
+  element("font-size").textContent = `${preferences.codeSize}px`;
+  element("shell").classList.toggle("sidebar-hidden", !preferences.sidebar);
+  element("toggle-explorer").setAttribute("aria-pressed", String(preferences.sidebar));
+  editor.refresh();
+}
+
+function changeCodeSize(direction) {
+  preferences.codeSize = Math.min(MAX_CODE_SIZE, Math.max(MIN_CODE_SIZE, preferences.codeSize + direction * CODE_SIZE_STEP));
+  store(PREFERENCES_KEY, preferences);
+  applyPreferences();
+}
+
+element("smaller").addEventListener("click", () => changeCodeSize(-1));
+element("bigger").addEventListener("click", () => changeCodeSize(1));
+
+function setTerminalShare(share) {
+  preferences.terminalShare = Math.round(Math.min(MAX_TERMINAL_SHARE, Math.max(MIN_TERMINAL_SHARE, share)));
+  applyPreferences();
+}
+
+element("resizer").addEventListener("pointerdown", (event) => {
+  const resizer = element("resizer");
+  resizer.setPointerCapture(event.pointerId);
+  resizer.classList.add("dragging");
+  const area = element("workbench").getBoundingClientRect();
+  const move = (moveEvent) => setTerminalShare(((area.bottom - moveEvent.clientY) / area.height) * 100);
+  const end = () => {
+    resizer.classList.remove("dragging");
+    resizer.removeEventListener("pointermove", move);
+    store(PREFERENCES_KEY, preferences);
+  };
+  resizer.addEventListener("pointermove", move);
+  resizer.addEventListener("pointerup", end, { once: true });
+  resizer.addEventListener("pointercancel", end, { once: true });
+});
+element("resizer").addEventListener("keydown", (event) => {
+  if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+  event.preventDefault();
+  setTerminalShare(preferences.terminalShare + (event.key === "ArrowUp" ? 5 : -5));
+  store(PREFERENCES_KEY, preferences);
+});
+
+document.addEventListener("keydown", (event) => {
+  const command = event.ctrlKey || event.metaKey;
+  if (inkOn && event.key === "Escape") {
+    event.preventDefault();
+    setInk(false);
+    return;
+  }
+  // While the pen is on, Ctrl+Z removes the last pen stroke instead of changing the code.
+  if (inkOn && command && event.key.toLowerCase() === "z") {
+    event.preventDefault();
+    event.stopPropagation();
+    inkStrokes.pop();
+    updateInkControls();
+    drawInk();
+    return;
+  }
+  if (command && event.key === "Enter") {
+    event.preventDefault();
+    runCode();
+  } else if (command && event.key.toLowerCase() === "s") {
+    // Files save automatically, so Ctrl+S only confirms it instead of saving the web page.
+    event.preventDefault();
+    saveAll();
+  }
+}, true);
+
+element("editor-area").addEventListener("input", saveSoon);
+element("editor-area").addEventListener("keyup", saveSoon);
+window.addEventListener("pagehide", saveAll);
+
+// Files from the first version of this page, which had no folders, move into the tree.
+function loadTree() {
+  const saved = readStored(TREE_KEY, null);
+  if (saved?.items) return saved;
+  const old = readStored(OLD_FILES_KEY, null);
+  if (old?.files?.length) {
+    const moved = old.files.map((file) => ({ id: file.id, type: "file", name: cleanOldName(file.name), parent: null, code: file.code }));
+    return { items: moved, openTabs: moved.map(({ id }) => id), activeFileId: old.currentFileId, collapsed: [] };
+  }
+  const first = { id: makeId(), type: "file", name: "main.py", parent: null, code: STARTER };
+  return { items: [first], openTabs: [first.id], activeFileId: first.id, collapsed: [] };
+}
+
+function cleanOldName(name) {
+  return String(name || "main.py").replace(/[^\w .-]+/g, "_").slice(0, MAX_NAME_LENGTH) || "main.py";
+}
+
+async function start() {
+  const saved = loadTree();
+  items = saved.items;
+  openTabs = (saved.openTabs || []).filter((id) => itemById(id)?.type === "file");
+  activeFileId = itemById(saved.activeFileId)?.type === "file" ? saved.activeFileId : openTabs[0] || null;
+  if (activeFileId && !openTabs.includes(activeFileId)) openTabs.push(activeFileId);
+  collapsed = new Set(saved.collapsed || []);
+  selectedId = activeFileId;
+  loaded = true;
+  preferences = { ...preferences, ...readStored(PREFERENCES_KEY, {}) };
+  if (window.matchMedia("(max-width: 760px)").matches) preferences.sidebar = false;
+  applyPreferences();
+  showActiveFile();
+  showTerminal(null);
+  saveAll();
+  // Loads Python in the background, so the first run is quick. The input() helper is
+  // waited for briefly first, so the worker's requests go through it.
+  await Promise.race([inputHelper, new Promise((resolve) => setTimeout(resolve, 3000))]);
+  startWorker();
+  performance.mark("lab-ready");
+}
+
+if (getAdminToken()) start();
+</script>
+</body>
+</html>
