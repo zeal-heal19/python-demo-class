@@ -98,6 +98,11 @@
   .status-bar { flex: none; height: 30px; display: flex; align-items: center; gap: 12px; padding: 0 10px; background: var(--vs-status); color: #fff; font-size: 12px; white-space: nowrap; overflow: hidden; }
   .status-bar.running { background: #c46400; }
   .status-bar .push { margin-left: auto; }
+  #sheet-save { display: flex; align-items: center; gap: 6px; padding: 0 10px; font-weight: 600; background: rgba(255, 255, 255, .16); }
+  #sheet-save svg { width: 18px; height: 18px; }
+  #sheet-save.unsaved::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+  #sheet-save.problem { background: #c72e0f; }
+  #sheet-save[disabled] { cursor: default; opacity: .8; }
   #status-state { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   /* Groups of bottom-bar buttons, with a line between groups. */
   .status-bar .tools { flex: none; display: flex; align-items: center; gap: 10px; padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, .3); }
@@ -211,6 +216,9 @@
     <span id="font-size"></span>
     <button id="bigger" type="button" title="Bigger code" aria-label="Bigger code">A+</button>
   </span>
+  <span class="tools">
+    <button id="sheet-save" type="button" title="Save all folders and files to the Google Sheet (Ctrl+S)"><svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-8 6 6 0 0 1 11.5 1.5A3.5 3.5 0 0 1 17.5 18z"/><path d="M12 16v-5M9.5 13.5L12 11l2.5 2.5"/></svg><span id="sheet-save-label">Save</span></button>
+  </span>
 </footer>
 
 <script src="vendor/codemirror/codemirror.min.js"></script>
@@ -219,6 +227,8 @@
 <script src="vendor/codemirror/closebrackets.min.js"></script>
 <script src="vendor/codemirror/matchbrackets.min.js"></script>
 <script src="python-hints.js"></script>
+<script src="config.js"></script>
+<script src="student-api.js"></script>
 <script src="admin-api.js"></script>
 <script src="code-editor.js"></script>
 <script src="python-runner.js"></script>
@@ -312,7 +322,122 @@ function saveAll() {
   if (!loaded) return;
   const file = itemById(activeFileId);
   if (file) file.code = editor.getValue();
-  store(TREE_KEY, { items, openTabs, activeFileId, collapsed: [...collapsed] });
+  store(TREE_KEY, { items, openTabs, activeFileId, collapsed: [...collapsed], sheet });
+  showSheetState();
+}
+
+/* Saving to the Google Sheet. Every change is kept on this computer at once, and Save
+   copies all folders and files to the sheet, so any computer can load them. */
+
+// sheet.updatedAt is the sheet's version this computer last loaded or saved, and
+// sheet.copy is what it held then, to tell whether anything has changed since.
+let sheet = { updatedAt: "", copy: null };
+let sheetBusy = false;
+let sheetProblem = "";
+
+function treeForSheet() {
+  return JSON.stringify(items.map(({ id, type, name, parent, code }) => (type === "file" ? { id, type, name, parent, code } : { id, type, name, parent })));
+}
+
+function hasUnsavedChanges() {
+  return treeForSheet() !== sheet.copy;
+}
+
+function showSheetState() {
+  const button = element("sheet-save");
+  const unsaved = loaded && hasUnsavedChanges();
+  let label = unsaved ? "Save" : "Saved";
+  if (sheetBusy) label = "Saving...";
+  else if (sheetProblem) label = sheetProblem;
+  element("sheet-save-label").textContent = label;
+  button.disabled = sheetBusy;
+  button.classList.toggle("unsaved", unsaved && !sheetBusy && !sheetProblem);
+  button.classList.toggle("problem", Boolean(sheetProblem) && !sheetBusy);
+}
+
+async function saveToSheet(force = false) {
+  if (!loaded || sheetBusy) return;
+  saveAll();
+  const sent = treeForSheet();
+  sheetBusy = true;
+  sheetProblem = "";
+  showSheetState();
+  let result = null;
+  try {
+    result = await callBackend({ action: "adminCodeLabSave", token: getAdminToken(), data: sent, baseUpdatedAt: sheet.updatedAt, force: force ? "yes" : "" });
+  } catch (error) {
+    result = null;
+  }
+  sheetBusy = false;
+  if (result?.ok) {
+    sheet = { updatedAt: result.updatedAt, copy: sent };
+  } else if (result?.error === "conflict") {
+    showSheetState();
+    if (confirm("The Code Lab in your Google Sheet was saved from another computer after this one loaded it.\n\nOK replaces the sheet's copy with this computer's folders and files. Cancel leaves the sheet as it is.")) return saveToSheet(true);
+    sheetProblem = "Not saved";
+  } else if (result?.error === "session") {
+    sheetProblem = "Log in again to save";
+  } else if (result?.error === "toolarge") {
+    sheetProblem = "Too large to save";
+  } else {
+    sheetProblem = "Not saved. Try again";
+  }
+  saveAll();
+}
+
+element("sheet-save").addEventListener("click", () => {
+  if (sheetProblem === "Log in again to save") {
+    location.assign("admin.html");
+    return;
+  }
+  saveToSheet();
+});
+
+function isUntouchedStarter() {
+  return items.length === 1 && items[0].type === "file" && items[0].code === STARTER;
+}
+
+function useSheetItems(sheetItems) {
+  items = sheetItems;
+  openTabs = openTabs.filter((id) => itemById(id)?.type === "file");
+  if (!itemById(activeFileId)) activeFileId = openTabs[0] || items.find((item) => item.type === "file")?.id || null;
+  if (activeFileId && !openTabs.includes(activeFileId)) openTabs.push(activeFileId);
+  selectedId = activeFileId;
+  showActiveFile();
+}
+
+// Loads the sheet's copy when it's newer than this computer's. Unsaved work here is only
+// replaced if the user agrees.
+async function loadFromSheet() {
+  let result = null;
+  try {
+    result = await callBackend({ action: "adminCodeLabLoad", token: getAdminToken() });
+  } catch (error) {
+    result = null;
+  }
+  if (result?.error === "session") {
+    sheetProblem = "Log in again to save";
+  } else if (!result?.ok) {
+    sheetProblem = "Couldn't reach the sheet";
+  } else if (result.updatedAt && result.updatedAt !== sheet.updatedAt) {
+    saveAll();
+    const sheetCopy = JSON.stringify(result.items);
+    const keepHere = sheet.copy !== null && hasUnsavedChanges() && !isUntouchedStarter()
+      && !confirm("Your Google Sheet has a newer Code Lab, saved from another computer.\n\nOK loads it, replacing the unsaved changes on this computer. Cancel keeps this computer's version, and Save will then replace the sheet's copy.");
+    if (sheet.copy === null && !isUntouchedStarter() && treeForSheet() !== sheetCopy) {
+      // This computer has files that were never saved to the sheet, so they're kept as well.
+      const here = items.filter((item) => !result.items.some((other) => other.id === item.id));
+      const folder = { id: makeId(), type: "folder", name: "From this computer", parent: null };
+      if (here.length) result.items.push(folder, ...here.map((item) => ({ ...item, parent: item.parent && here.some((other) => other.id === item.parent) ? item.parent : folder.id })));
+    }
+    if (keepHere) {
+      sheet = { updatedAt: result.updatedAt, copy: sheetCopy };
+    } else {
+      useSheetItems(result.items);
+      sheet = { updatedAt: result.updatedAt, copy: sheetCopy };
+    }
+  }
+  saveAll();
 }
 
 // Folder for a new item: the selected folder, or the folder that holds the selected file.
@@ -999,9 +1124,9 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     runCode();
   } else if (command && event.key.toLowerCase() === "s") {
-    // Files save automatically, so Ctrl+S only confirms it instead of saving the web page.
+    // Saves to the Google Sheet, instead of saving the web page.
     event.preventDefault();
-    saveAll();
+    saveToSheet();
   }
 }, true);
 
@@ -1034,6 +1159,7 @@ async function start() {
   if (activeFileId && !openTabs.includes(activeFileId)) openTabs.push(activeFileId);
   collapsed = new Set(saved.collapsed || []);
   selectedId = activeFileId;
+  sheet = { updatedAt: "", copy: null, ...saved.sheet };
   loaded = true;
   preferences = { ...preferences, ...readStored(PREFERENCES_KEY, {}) };
   if (window.matchMedia("(max-width: 760px)").matches) preferences.sidebar = false;
@@ -1041,10 +1167,12 @@ async function start() {
   showActiveFile();
   showTerminal(null);
   saveAll();
+  const sheetLoad = loadFromSheet();
   // Loads Python in the background, so the first run is quick. The input() helper is
   // waited for briefly first, so the worker's requests go through it.
   await Promise.race([inputHelper, new Promise((resolve) => setTimeout(resolve, 3000))]);
   startWorker();
+  await sheetLoad;
   performance.mark("lab-ready");
 }
 
