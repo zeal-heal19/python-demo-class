@@ -262,6 +262,10 @@ const HINT_MS = 2500;
 const MAX_UNDO = 200;
 const SAVE_DELAY_MS = 300;
 const HIT_TOLERANCE = 8;
+// Alignment guides while moving: how close, in screen pixels, an edge must be to snap.
+const SNAP_DISTANCE = 7;
+const MAX_SNAP_TARGETS = 400;
+const GUIDE_COLOR = "#f43f5e";
 const EXPORT_PADDING = 40;
 const MAX_EXPORT_SIZE = 8000;
 const FONT = "system-ui, sans-serif";
@@ -502,6 +506,99 @@ function drawSelection(list) {
   // One box around a very large selection is quicker, and easier to read, than hundreds of boxes.
   if (list.length > MAX_SELECTION_BOXES) return drawBox(unionBounds(list), paint);
   for (const shape of list) drawBox(boundsOf(shape), shape.locked ? LOCKED_COLOR : paint);
+}
+
+/* Alignment guides */
+
+// The lines a box can line up on: left, centre and right, then top, middle and bottom.
+function alignmentLines([left, top, right, bottom]) {
+  return { x: [left, (left + right) / 2, right], y: [top, (top + bottom) / 2, bottom] };
+}
+
+// Items on screen that a moving selection can line up with. Pen strokes are left out,
+// because their uneven edges would make guides appear everywhere.
+function snapTargets(moving) {
+  const skip = new Set(moving);
+  const left = -view.x / view.zoom;
+  const top = -view.y / view.zoom;
+  const right = left + liveCanvas.clientWidth / view.zoom;
+  const bottom = top + liveCanvas.clientHeight / view.zoom;
+  const targets = [];
+  for (const shape of shapes) {
+    if (skip.has(shape) || shape.type === "pen") continue;
+    const bounds = boundsOf(shape);
+    if (bounds[2] < left || bounds[0] > right || bounds[3] < top || bounds[1] > bottom) continue;
+    targets.push(bounds);
+    if (targets.length >= MAX_SNAP_TARGETS) break;
+  }
+  return targets;
+}
+
+// The smallest nudge, within reach, that lines one of the moving lines up with a target's.
+function snapOffset(movingLines, targets, axis, reach) {
+  let best = null;
+  for (const target of targets) {
+    for (const to of alignmentLines(target)[axis]) {
+      for (const from of movingLines) {
+        const offset = to - from;
+        if (Math.abs(offset) <= reach && (best === null || Math.abs(offset) < Math.abs(best))) best = offset;
+      }
+    }
+  }
+  return best ?? 0;
+}
+
+function guidesFor(box, targets) {
+  const closeEnough = 0.5 / view.zoom;
+  const own = alignmentLines(box);
+  const guides = new Map();
+  const add = (axis, at, from, to) => {
+    const key = `${axis}${Math.round(at * 10)}`;
+    const guide = guides.get(key);
+    guides.set(key, guide ? { ...guide, from: Math.min(guide.from, from), to: Math.max(guide.to, to) } : { axis, at, from, to });
+  };
+  for (const target of targets) {
+    const other = alignmentLines(target);
+    for (const at of own.x) {
+      if (other.x.some((value) => Math.abs(value - at) < closeEnough)) add("x", at, Math.min(box[1], target[1]), Math.max(box[3], target[3]));
+    }
+    for (const at of own.y) {
+      if (other.y.some((value) => Math.abs(value - at) < closeEnough)) add("y", at, Math.min(box[0], target[0]), Math.max(box[2], target[2]));
+    }
+  }
+  return [...guides.values()];
+}
+
+// Moves by the pointer's distance, adjusted so nearby edges line up. Alt moves freely.
+function snappedMove(gesture, dx, dy, free) {
+  if (free || !gesture.targets.length) return { dx, dy, guides: [] };
+  const [left, top, right, bottom] = gesture.startBounds;
+  const reach = SNAP_DISTANCE / view.zoom;
+  const lines = alignmentLines([left + dx, top + dy, right + dx, bottom + dy]);
+  const snappedX = dx + snapOffset(lines.x, gesture.targets, "x", reach);
+  const snappedY = dy + snapOffset(lines.y, gesture.targets, "y", reach);
+  const box = [left + snappedX, top + snappedY, right + snappedX, bottom + snappedY];
+  return { dx: snappedX, dy: snappedY, guides: guidesFor(box, gesture.targets) };
+}
+
+function drawGuides(guides) {
+  if (!guides.length) return;
+  const overhang = 12 / view.zoom;
+  liveContext.save();
+  liveContext.strokeStyle = GUIDE_COLOR;
+  liveContext.lineWidth = 1 / view.zoom;
+  liveContext.beginPath();
+  for (const { axis, at, from, to } of guides) {
+    if (axis === "x") {
+      liveContext.moveTo(at, from - overhang);
+      liveContext.lineTo(at, to + overhang);
+    } else {
+      liveContext.moveTo(from - overhang, at);
+      liveContext.lineTo(to + overhang, at);
+    }
+  }
+  liveContext.stroke();
+  liveContext.restore();
 }
 
 function renderLive() {
@@ -856,12 +953,18 @@ function continueGesture(event) {
   } else if (kind === "move") {
     if (!gesture.moved) {
       gesture.moved = true;
+      gesture.startBounds = unionBounds(gesture.moving);
+      gesture.targets = snapTargets(gesture.moving);
       renderBase(new Set(gesture.moving));
     }
     clearLive();
-    const moved = gesture.moving.map((shape) => translated(shape, x - gesture.startX, y - gesture.startY));
+    const { dx, dy, guides } = snappedMove(gesture, x - gesture.startX, y - gesture.startY, event.altKey);
+    gesture.dx = dx;
+    gesture.dy = dy;
+    const moved = gesture.moving.map((shape) => translated(shape, dx, dy));
     moved.forEach((shape) => drawShape(liveContext, shape));
     drawSelection(moved);
+    drawGuides(guides);
   } else if (kind === "resize") {
     gesture.resized = resizedShape(gesture, x, y);
     clearLive();
@@ -912,7 +1015,10 @@ function finishGesture(event) {
   } else if (finished.kind === "move") {
     if (finished.moved) {
       const { x, y } = toWorld(event);
-      replaceShapes(finished.moving, (shape) => translated(shape, x - finished.startX, y - finished.startY));
+      // Ends where the last move left it, so a snapped position is kept.
+      const dx = finished.dx ?? x - finished.startX;
+      const dy = finished.dy ?? y - finished.startY;
+      replaceShapes(finished.moving, (shape) => translated(shape, dx, dy));
       renderBase();
     }
     renderLive();
@@ -1060,7 +1166,8 @@ function noteTap(shape) {
 
 /* Text */
 
-// Text is stored as lines of formatted pieces: { bullet, runs: [{ text, bold, italic }] }.
+// Text is stored as lines of formatted pieces: { bullet, runs: [{ text, bold, italic, color }] }.
+// A piece's colour is optional. Without one it uses the text box's colour.
 // Text saved before formatting existed has a plain "text" value instead.
 function textLines(shape) {
   if (shape.lines) return shape.lines;
@@ -1077,21 +1184,25 @@ function familyOf(shape) {
 
 function drawTextShape(context, shape) {
   const { fontSize, points } = shape;
+  const boxPaint = context.fillStyle;
   context.textBaseline = "top";
   textLines(shape).forEach((line, index) => {
     const y = points[1] + index * fontSize * LINE_HEIGHT;
     let x = points[0];
     if (line.bullet) {
       context.font = textFont(fontSize, {}, familyOf(shape));
+      context.fillStyle = boxPaint;
       context.fillText("•", x + fontSize * BULLET_MARK_OFFSET, y);
       x += fontSize * BULLET_INDENT;
     }
     for (const run of line.runs) {
       context.font = textFont(fontSize, run, familyOf(shape));
+      context.fillStyle = run.color ? paintFor(run.color) : boxPaint;
       context.fillText(run.text, x, y);
       x += context.measureText(run.text).width;
     }
   });
+  context.fillStyle = boxPaint;
 }
 
 function measureLines(lines, fontSize, family = FONT) {
@@ -1110,6 +1221,12 @@ function measureLines(lines, fontSize, family = FONT) {
 function appendEditorLine(parent, line) {
   for (const run of line.runs) {
     let node = document.createTextNode(run.text);
+    if (run.color) {
+      const wrapper = document.createElement("span");
+      wrapper.style.color = paintFor(run.color);
+      wrapper.append(node);
+      node = wrapper;
+    }
     if (run.italic) {
       const wrapper = document.createElement("i");
       wrapper.append(node);
@@ -1145,8 +1262,24 @@ function fillEditor(input, lines) {
   }
 }
 
+function hexToRgb(hex) {
+  const value = parseInt(hex.slice(1), 16);
+  return `rgb(${value >> 16}, ${(value >> 8) & 255}, ${value & 255})`;
+}
+
+// Turns a colour the browser reports back into the name it's stored by, so a coloured
+// word still changes shade with the background. Any other colour is kept as hex.
+function colorNameFor(rgb) {
+  const paint = BACKGROUNDS[background].paint;
+  const named = Object.keys(paint).find((name) => name !== "selection" && hexToRgb(paint[name]) === rgb);
+  if (named) return named;
+  const parts = rgb.match(/\d+/g);
+  return parts ? `#${parts.slice(0, 3).map((part) => Number(part).toString(16).padStart(2, "0")).join("")}` : null;
+}
+
 // Reads what the browser's editor produced back into plain lines and formatted pieces.
 function readEditorLines(input) {
+  const boxColor = getComputedStyle(input).color;
   const lines = [];
   let current = null;
   const startLine = (bullet) => { current = { bullet, runs: [] }; };
@@ -1160,10 +1293,11 @@ function readEditorLines(input) {
     const style = getComputedStyle(node.parentElement);
     const bold = Number(style.fontWeight) >= 600;
     const italic = style.fontStyle === "italic";
+    const color = style.color === boxColor ? null : colorNameFor(style.color);
     if (!current) startLine(false);
     const last = current.runs[current.runs.length - 1];
-    if (last && last.bold === bold && last.italic === italic) last.text += text;
-    else current.runs.push({ text, bold, italic });
+    if (last && last.bold === bold && last.italic === italic && (last.color || null) === color) last.text += text;
+    else current.runs.push(color ? { text, bold, italic, color } : { text, bold, italic });
   };
   const walk = (parent, bullet) => {
     for (const node of parent.childNodes) {
@@ -1285,8 +1419,10 @@ function openTextEditor(point, existing = null) {
     }
     document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
   });
-  input.addEventListener("blur", () => {
+  input.addEventListener("blur", (event) => {
     // Switching to another window, such as for screen sharing, shouldn't end the editing.
+    // Neither does picking a custom colour for the selected words.
+    if (element("color-panel").contains(event.relatedTarget)) return;
     if (document.hasFocus()) closeTextEditor(true);
   });
   if (existing) fillEditor(input, textLines(existing));
@@ -1304,13 +1440,13 @@ function openTextEditor(point, existing = null) {
   updateFormatButtons();
 }
 
-function finishEditedText(existing, lines, fontSize) {
+function finishEditedText(existing, lines, fontSize, textColor) {
   const size = measureLines(lines, fontSize, familyOf(existing));
   if (!lines.length) {
     selected = selected.filter((shape) => shape !== existing);
     commit(shapes.filter((shape) => shape !== existing));
-  } else if (fontSize !== existing.fontSize || JSON.stringify(lines) !== JSON.stringify(textLines(existing))) {
-    replaceShapes([existing], ({ text, ...shape }) => ({ ...shape, lines, fontSize, ...size }));
+  } else if (fontSize !== existing.fontSize || textColor !== existing.color || JSON.stringify(lines) !== JSON.stringify(textLines(existing))) {
+    replaceShapes([existing], ({ text, ...shape }) => ({ ...shape, color: textColor, lines, fontSize, ...size }));
   }
   renderAll();
 }
@@ -1323,7 +1459,7 @@ function closeTextEditor(keep) {
   input.remove();
   element("text-format").hidden = true;
   if (existing) {
-    if (keep) finishEditedText(existing, lines, fontSize);
+    if (keep) finishEditedText(existing, lines, fontSize, textColor);
     else renderAll();
     return;
   }
@@ -1452,10 +1588,7 @@ async function addImageFile(file) {
   renderBase();
 }
 
-element("color-custom").addEventListener("input", (event) => {
-  color = event.target.value;
-  updateControls();
-});
+element("color-custom").addEventListener("input", (event) => useColor(event.target.value, false));
 element("color-custom").addEventListener("change", () => closeColorPanel());
 
 element("image-file").addEventListener("change", (event) => {
@@ -1947,8 +2080,71 @@ function toggleColorPanel() {
 }
 
 function chooseColor(value) {
-  color = value;
   closeColorPanel();
+  useColor(value);
+}
+
+/* Colouring text and selected items */
+
+// The last selection inside the text being edited, so a colour from the colour panel,
+// which takes the focus, still reaches the words that were selected.
+let textSelection = null;
+document.addEventListener("selectionchange", () => {
+  const selection = getSelection();
+  if (textEditor && selection.rangeCount && textEditor.input.contains(selection.anchorNode)) textSelection = selection.getRangeAt(0).cloneRange();
+});
+
+// Colours the selected words, or the whole text box when no words are selected.
+function colorEditedText(value) {
+  const { input } = textEditor;
+  input.focus();
+  if (textSelection && input.contains(textSelection.startContainer)) {
+    const selection = getSelection();
+    selection.removeAllRanges();
+    selection.addRange(textSelection);
+  }
+  if (!getSelection().isCollapsed && input.contains(getSelection().anchorNode)) {
+    document.execCommand("styleWithCSS", false, true);
+    document.execCommand("foreColor", false, paintFor(value));
+  } else {
+    textEditor.color = value;
+    input.style.color = paintFor(value);
+  }
+  placeFormatBar();
+}
+
+// Drops the words' own colours and joins pieces that now look the same.
+function withoutColors(runs) {
+  const joined = [];
+  for (const { color: _, ...run } of runs) {
+    const last = joined[joined.length - 1];
+    if (last && last.bold === run.bold && last.italic === run.italic) last.text += run.text;
+    else joined.push({ ...run });
+  }
+  return joined;
+}
+
+// A colour click sets the colour for what's drawn next. It also recolours the selected
+// words while typing, or the selected items, as in other drawing apps.
+function useColor(value, closePanel = true) {
+  color = value;
+  if (textEditor) {
+    colorEditedText(value);
+  } else if (tool === "select") {
+    const targets = selected.filter((shape) => !shape.locked && shape.type !== "image");
+    if (targets.length) {
+      replaceShapes(targets, (shape) => {
+        if (shape.type !== "text") return { ...shape, color: value };
+        // The whole box takes the new colour, including words coloured on their own.
+        const lines = textLines(shape).map((line) => ({ ...line, runs: withoutColors(line.runs) }));
+        const { text, ...rest } = shape;
+        return { ...rest, color: value, lines };
+      });
+      renderBase();
+      renderLive();
+    }
+  }
+  if (closePanel) closeColorPanel();
   updateControls();
 }
 
@@ -1961,20 +2157,21 @@ function buildToolbar() {
   controlButtons.image = makeToolButton("Add an image, or paste one with Ctrl+V", '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>', () => element("image-file").click());
   bar.append(controlButtons.image, separator());
   for (const [name, value] of COLORS) {
-    controlButtons.colors[value] = makeToolButton(name, '<span class="swatch"></span>', () => {
-      color = value;
-      updateControls();
-    });
+    controlButtons.colors[value] = makeToolButton(name, '<span class="swatch"></span>', () => useColor(value));
+    // Stopping the press keeps the words being edited selected.
+    controlButtons.colors[value].addEventListener("mousedown", (event) => event.preventDefault());
     bar.append(controlButtons.colors[value]);
   }
   controlButtons.moreColors = makeToolButton("More colours", '<span class="swatch swatch-rainbow"></span>', toggleColorPanel);
   controlButtons.moreColors.setAttribute("aria-expanded", "false");
   controlButtons.moreColors.setAttribute("aria-controls", "color-panel");
+  controlButtons.moreColors.addEventListener("mousedown", (event) => event.preventDefault());
   bar.append(controlButtons.moreColors, separator());
   for (const [name, value] of MORE_COLORS) {
     const swatch = Object.assign(document.createElement("button"), { type: "button", title: name });
     swatch.setAttribute("aria-label", name);
     swatch.addEventListener("click", () => chooseColor(value));
+    swatch.addEventListener("mousedown", (event) => event.preventDefault());
     controlButtons.palette[value] = swatch;
     element("color-grid").append(swatch);
   }
