@@ -26,6 +26,11 @@
   .pager .btn[disabled] { cursor: not-allowed; }
   #test-count { color: var(--muted); font-size: .88rem; margin: 0 0 14px; }
 
+  /* The title is a short label; the question itself sits in its own box below it. */
+  #title { font-size: 1.05rem; font-weight: 600; color: var(--muted); margin: 0; }
+  #task { margin: 18px 0 20px; padding: 14px 16px; background: var(--primary-tint); border-left: 4px solid var(--primary);
+    border-radius: 6px; color: var(--ink); font-size: 1.05rem; line-height: 1.6; }
+
   /* Long exercises scroll sideways so the question numbers stay on one line. */
   #steps { overflow-x: auto; max-width: 100%; padding: 5px; scrollbar-width: thin; }
   #steps li { flex: none; }
