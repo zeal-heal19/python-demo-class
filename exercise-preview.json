@@ -1,0 +1,552 @@
+{
+ "sessions": {
+  "1": {
+   "topic": "Session 1: Introduction to Python",
+   "total": 56,
+   "questions": [
+    {
+     "id": "P1-1",
+     "title": "What is Python · Quiz 1",
+     "task": "Python is a ______ programming language, so its code is close to human language.",
+     "hint": "Think about how much Python code looks like everyday English.",
+     "options": [
+      "machine-level",
+      "high-level",
+      "assembly",
+      "hardware-only"
+     ],
+     "answer": "high-level"
+    },
+    {
+     "id": "P1-2",
+     "title": "Your first program · Quiz 1",
+     "task": "To show text on the screen, Python uses the ______ function.",
+     "hint": "Look back at the Your first program examples from class.",
+     "options": [
+      "show()",
+      "print()",
+      "display()",
+      "write()"
+     ],
+     "answer": "print()"
+    },
+    {
+     "id": "P1-3",
+     "title": "Python as a calculator · Complete 1",
+     "task": "Work out the total cost of 3 notebooks at 45 each and 2 pens at 10 each. Replace each ____ in the starter code.",
+     "hint": "Look back at the Python as a calculator examples from class.",
+     "starter": "notebooks = 3 * ____\npens = ____ * 10\nprint(\"Total:\", notebooks + ____)\n",
+     "tests": [
+      {
+       "expected": "Total: 155"
+      }
+     ]
+    },
+    {
+     "id": "P1-4",
+     "title": "Python is interpreted · Code 1",
+     "task": "This program has a typo, so Python stops with an error. Fix it. The code is in the editor to start you off.",
+     "hint": "Look back at the Python is interpreted examples from class.",
+     "starter": "pritn(\"Hi there\")\n",
+     "tests": [
+      {
+       "expected": "Hi there"
+      }
+     ]
+    },
+    {
+     "id": "P1-5",
+     "title": "Dynamic typing · Code 1",
+     "task": "Make x = 10 and print type(x). Then set x = \"ten\" and print type(x) again.",
+     "hint": "Look back at the Dynamic typing examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "<class 'int'>\n<class 'str'>"
+      }
+     ]
+    }
+   ]
+  },
+  "2": {
+   "topic": "Session 2: Basic syntax and data types",
+   "total": 70,
+   "questions": [
+    {
+     "id": "P2-1",
+     "title": "Syntax: comments and indentation · Quiz 1",
+     "task": "In Python, a comment starts with ______.",
+     "hint": "Look back at the Syntax: comments and indentation examples from class.",
+     "options": [
+      "//",
+      "#",
+      "--",
+      "/*"
+     ],
+     "answer": "#"
+    },
+    {
+     "id": "P2-2",
+     "title": "Variables · Quiz 1",
+     "task": "Which of these is a valid variable name?",
+     "hint": "Names can use letters, digits and _, but can't start with a digit or contain spaces.",
+     "options": [
+      "2total",
+      "total-marks",
+      "total_marks",
+      "total marks"
+     ],
+     "answer": "total_marks"
+    },
+    {
+     "id": "P2-3",
+     "title": "Data types · Complete 1",
+     "task": "Give each variable a value of the right type. Replace each ____ in the starter code.",
+     "hint": "Look back at the Data types examples from class.",
+     "starter": "students = ____        # a whole number\nfee = ____             # a decimal number\ncourse = ____          # text\nis_open = ____         # True or False\nprint(students, fee, course, is_open)\n",
+     "tests": [
+      {
+       "expected": "30 2499.0 Python True"
+      }
+     ]
+    },
+    {
+     "id": "P2-4",
+     "title": "type() · Code 1",
+     "task": "Print the type of 42, 3.14, \"hello\", True and None.",
+     "hint": "Look back at the type() examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "<class 'int'>\n<class 'float'>\n<class 'str'>\n<class 'bool'>\n<class 'NoneType'>"
+      }
+     ]
+    },
+    {
+     "id": "P2-5",
+     "title": "Type conversion · Code 1",
+     "task": "Turn the text \"45\" into a number and add 5 to it.",
+     "hint": "Look back at the Type conversion examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "50"
+      }
+     ]
+    }
+   ]
+  },
+  "3": {
+   "topic": "Session 3: Input, output and text",
+   "total": 73,
+   "questions": [
+    {
+     "id": "P3-1",
+     "title": "print(), sep and end · Quiz 1",
+     "task": "print(\"a\", \"b\", sep=\"-\") prints ______.",
+     "hint": "Look back at the print(), sep and end examples from class.",
+     "options": [
+      "a b",
+      "a-b",
+      "ab",
+      "a-b-"
+     ],
+     "answer": "a-b"
+    },
+    {
+     "id": "P3-2",
+     "title": "input() · Quiz 1",
+     "task": "input() always gives back a ______.",
+     "hint": "Look back at the input() examples from class.",
+     "options": [
+      "number",
+      "string (text)",
+      "list",
+      "True or False"
+     ],
+     "answer": "string (text)"
+    },
+    {
+     "id": "P3-3",
+     "title": "Converting input to numbers · Complete 1",
+     "task": "Ask for the length and width of a room in metres, and print its area. Replace each ____ in the starter code.",
+     "hint": "Look back at the Converting input to numbers examples from class.",
+     "starter": "length = ____(input(\"Length: \"))\nwidth = ____(input(\"Width: \"))\nprint(\"Area:\", length * width)\n",
+     "tests": [
+      {
+       "inputs": [
+        "4.5",
+        "3"
+       ],
+       "expected": "Area: 13.5"
+      }
+     ]
+    },
+    {
+     "id": "P3-4",
+     "title": "Indexing and slicing · Code 1",
+     "task": "For word = \"Programming\", print the first letter, the last letter and the length.",
+     "hint": "Look back at the Indexing and slicing examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "P g 11"
+      }
+     ]
+    },
+    {
+     "id": "P3-5",
+     "title": "String methods · Code 1",
+     "task": "Tidy up the name \"   rIYa sHARma  \": remove the spaces at the ends and fix the capitals.",
+     "hint": "Look back at the String methods examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "Riya Sharma"
+      }
+     ]
+    }
+   ]
+  },
+  "4": {
+   "topic": "Session 4: Control flow",
+   "total": 73,
+   "questions": [
+    {
+     "id": "P4-1",
+     "title": "if / elif / else · Quiz 1",
+     "task": "In an if / elif / else chain, how many blocks run at most?",
+     "hint": "Python stops at the first test that's True.",
+     "options": [
+      "all of them",
+      "one",
+      "two",
+      "none ever"
+     ],
+     "answer": "one"
+    },
+    {
+     "id": "P4-2",
+     "title": "and, or, not · Quiz 1",
+     "task": "age >= 18 and has_id is True only when ______.",
+     "hint": "Look back at the and, or, not examples from class.",
+     "options": [
+      "either part is True",
+      "both parts are True",
+      "both parts are False",
+      "age is 18"
+     ],
+     "answer": "both parts are True"
+    },
+    {
+     "id": "P4-3",
+     "title": "Nested conditions · Complete 1",
+     "task": "Online order: if it's paid, check whether it's over 500 for free delivery. Replace each ____ in the starter code.",
+     "hint": "Look back at the Nested conditions examples from class.",
+     "starter": "paid = True\namount = 650\nif paid:\n    ____ amount > 500:\n        print(\"Paid, free delivery\")\n    else:\n        print(\"Paid, delivery Rs. 40\")\n____:\n    print(\"Please pay first\")\n",
+     "tests": [
+      {
+       "expected": "Paid, free delivery"
+      }
+     ]
+    },
+    {
+     "id": "P4-4",
+     "title": "for loops and range() · Code 1",
+     "task": "Print the numbers 1 to 10.",
+     "hint": "Look back at the for loops and range() examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "1 2 3 4 5 6 7 8 9 10"
+      }
+     ]
+    },
+    {
+     "id": "P4-5",
+     "title": "while loops · Code 1",
+     "task": "Count down from 5 to 1 with a while loop, then print \"Lift off!\".",
+     "hint": "Look back at the while loops examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "5\n4\n3\n2\n1\nLift off!"
+      }
+     ]
+    }
+   ]
+  },
+  "5": {
+   "topic": "Session 5: Data structures",
+   "total": 65,
+   "questions": [
+    {
+     "id": "P5-1",
+     "title": "Lists · Quiz 1",
+     "task": "To add an item to the end of a list, use ______.",
+     "hint": "Look back at the Lists examples from class.",
+     "options": [
+      "append()",
+      "add()",
+      "push()",
+      "insert_end()"
+     ],
+     "answer": "append()"
+    },
+    {
+     "id": "P5-2",
+     "title": "Tuples · Quiz 1",
+     "task": "The main difference between a tuple and a list is that a tuple ______.",
+     "hint": "Look back at the Tuples examples from class.",
+     "options": [
+      "can't be changed",
+      "can only hold numbers",
+      "has no order",
+      "can't be printed"
+     ],
+     "answer": "can't be changed"
+    },
+    {
+     "id": "P5-3",
+     "title": "Dictionaries · Complete 1",
+     "task": "Update a price, add a new item, and print every item with its price. Replace each ____ in the starter code.",
+     "hint": "Look back at the Dictionaries examples from class.",
+     "starter": "prices = {\"tea\": 12, \"coffee\": 20}\nprices[\"tea\"] = ____\nprices[____] = 15\nfor item, price in prices.____():\n    print(item, price)\n",
+     "tests": [
+      {
+       "expected": "tea 15\ncoffee 20\nsamosa 15"
+      }
+     ]
+    },
+    {
+     "id": "P5-4",
+     "title": "Sets · Code 1",
+     "task": "Remove the duplicates from [3, 1, 3, 2, 1, 5] and print the result in order.",
+     "hint": "Look back at the Sets examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "[1, 2, 3, 5]"
+      }
+     ]
+    },
+    {
+     "id": "P5-5",
+     "title": "List comprehensions · Code 1",
+     "task": "Make a list of the squares of 1 to 10 in one line.",
+     "hint": "Look back at the List comprehensions examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]"
+      }
+     ]
+    }
+   ]
+  },
+  "6": {
+   "topic": "Session 6: Functions and modules",
+   "total": 63,
+   "questions": [
+    {
+     "id": "P6-1",
+     "title": "def and return · Quiz 1",
+     "task": "A function is created with the keyword ______.",
+     "hint": "Look back at the def and return examples from class.",
+     "options": [
+      "function",
+      "def",
+      "fun",
+      "create"
+     ],
+     "answer": "def"
+    },
+    {
+     "id": "P6-2",
+     "title": "Parameters · Quiz 1",
+     "task": "In def greet(name, greeting=\"Hi\"), greeting is a ______ parameter.",
+     "hint": "Look back at the Parameters examples from class.",
+     "options": [
+      "required",
+      "default",
+      "global",
+      "hidden"
+     ],
+     "answer": "default"
+    },
+    {
+     "id": "P6-3",
+     "title": "*args and **kwargs · Complete 1",
+     "task": "Finish the function that multiplies any number of values together. Replace each ____ in the starter code.",
+     "hint": "Look back at the *args and **kwargs examples from class.",
+     "starter": "def multiply(____numbers):\n    result = 1\n    for n in ____:\n        result *= n\n    return result\n\nprint(multiply(2, 3, 4))\n",
+     "tests": [
+      {
+       "expected": "24"
+      }
+     ]
+    },
+    {
+     "id": "P6-4",
+     "title": "lambda · Code 1",
+     "task": "Make a lambda called cube and print cube(3).",
+     "hint": "Look back at the lambda examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "27"
+      }
+     ]
+    },
+    {
+     "id": "P6-5",
+     "title": "Scope · Code 1",
+     "task": "Make a global company = \"WeekendClasses\" and a function that prints it with a local team name.",
+     "hint": "Look back at the Scope examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "Python team at WeekendClasses"
+      }
+     ]
+    }
+   ]
+  },
+  "7": {
+   "topic": "Session 7: Object-oriented programming",
+   "total": 62,
+   "questions": [
+    {
+     "id": "P7-1",
+     "title": "Classes and objects · Quiz 1",
+     "task": "A class is like a ______, and objects are the things made from it.",
+     "hint": "Look back at the Classes and objects examples from class.",
+     "options": [
+      "blueprint",
+      "variable",
+      "loop",
+      "file"
+     ],
+     "answer": "blueprint"
+    },
+    {
+     "id": "P7-2",
+     "title": "__init__ and self · Quiz 1",
+     "task": "__init__ runs ______.",
+     "hint": "Look back at the __init__ and self examples from class.",
+     "options": [
+      "when you call print()",
+      "automatically, each time a new object is made",
+      "only when you call it yourself",
+      "when the program ends"
+     ],
+     "answer": "automatically, each time a new object is made"
+    },
+    {
+     "id": "P7-3",
+     "title": "Attributes and methods · Complete 1",
+     "task": "Finish the add_marks method, so it adds to the student's total. Replace each ____ in the starter code.",
+     "hint": "Look back at the Attributes and methods examples from class.",
+     "starter": "class Student:\n    def __init__(self, name):\n        self.name = name\n        self.total = 0\n\n    def add_marks(self, marks):\n        ____.total += ____\n\ns = Student(\"Zoya\")\ns.add_marks(40)\ns.____(35)\nprint(s.name, s.total)\n",
+     "tests": [
+      {
+       "expected": "Zoya 75"
+      }
+     ]
+    },
+    {
+     "id": "P7-4",
+     "title": "Inheritance and polymorphism · Code 1",
+     "task": "Make Animal with speak(), and Dog and Cat classes that change what speak() returns.",
+     "hint": "Look back at the Inheritance and polymorphism examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "Tommy says Woof!\nKitty says Meow!"
+      }
+     ]
+    },
+    {
+     "id": "P7-5",
+     "title": "Magic methods · Code 1",
+     "task": "Give a Book class a __str__ method, so print(book) shows \"Title by Author\".",
+     "hint": "Look back at the Magic methods examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "The Guide by R. K. Narayan"
+      }
+     ]
+    }
+   ]
+  },
+  "8": {
+   "topic": "Session 8: Files, errors and debugging",
+   "total": 63,
+   "questions": [
+    {
+     "id": "P8-1",
+     "title": "Reading and writing files · Quiz 1",
+     "task": "open(\"notes.txt\", \"w\") ______.",
+     "hint": "Look back at the Reading and writing files examples from class.",
+     "options": [
+      "adds to the end of the file",
+      "creates the file, or wipes it and starts again",
+      "only reads the file",
+      "deletes the file"
+     ],
+     "answer": "creates the file, or wipes it and starts again"
+    },
+    {
+     "id": "P8-2",
+     "title": "JSON · Quiz 1",
+     "task": "json.dump(data, f) ______.",
+     "hint": "Look back at the JSON examples from class.",
+     "options": [
+      "reads data from a file",
+      "writes data to a file as JSON",
+      "deletes a file",
+      "prints data"
+     ],
+     "answer": "writes data to a file as JSON"
+    },
+    {
+     "id": "P8-3",
+     "title": "Common errors · Complete 1",
+     "task": "This code crashes with a TypeError. Fix the second line. Replace each ____ in the starter code.",
+     "hint": "Look back at the Common errors examples from class.",
+     "starter": "items = 3\nprint(\"You bought \" + ____ + \" items\")\n",
+     "tests": [
+      {
+       "expected": "You bought 3 items"
+      }
+     ]
+    },
+    {
+     "id": "P8-4",
+     "title": "try / except / finally · Code 1",
+     "task": "Write to_number(text) that returns the number, or None if the text isn't a number.",
+     "hint": "Look back at the try / except / finally examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "42.5 None"
+      }
+     ]
+    },
+    {
+     "id": "P8-5",
+     "title": "raise · Code 1",
+     "task": "Write withdraw(balance, amount) that raises ValueError(\"Not enough balance\") when the amount is too big. Call it twice inside try/except.",
+     "hint": "Look back at the raise examples from class.",
+     "starter": "# Write your code below\n",
+     "tests": [
+      {
+       "expected": "Left: 700\nError: Not enough balance"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

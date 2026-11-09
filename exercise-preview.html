@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try the Exercises | WeekendClasses</title>
+<meta name="description" content="Try 5 real practice questions from each session of the WeekendClasses Python course, right in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="lab-layout.css">
+<link rel="stylesheet" href="vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="code-editor.css">
+<style>
+  .topbar-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .topbar-actions .btn { padding: 7px 14px; font-size: .88rem; }
+  #session-pick { font: inherit; font-size: .88rem; padding: 6px 8px; border-radius: 6px; border: 1px solid #a9bcba; }
+  .free-note { margin: 0; color: var(--muted); font-size: .88rem; font-weight: 500; }
+
+  #test-count { color: var(--muted); font-size: .88rem; margin: 0 0 14px; }
+  #title { font-size: 1.05rem; font-weight: 600; color: var(--muted); margin: 0; }
+  #task { margin: 18px 0 20px; padding: 14px 16px; background: var(--primary-tint); border-left: 4px solid var(--primary);
+    border-radius: 6px; color: var(--ink); font-size: 1.05rem; line-height: 1.6; }
+
+  #steps { overflow-x: auto; max-width: 100%; padding: 5px; scrollbar-width: thin; }
+  #steps li { flex: none; }
+  /* Questions beyond the free ones are locked, in red. */
+  .steps button.locked { border-color: var(--error); color: var(--error); background: #fdeceb; }
+  .steps button.locked[aria-current="step"] { border-width: 2px; }
+
+  .choice-only { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .choice-only .divider, .choice-only .lab { display: none; }
+  .choice-only .panel > * { max-width: 720px; }
+  #choice-box { border: 0; padding: 0; margin: 0 0 12px; }
+  #choice-box legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  #choice-box label { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 8px;
+    border: 1px solid #a9bcba; border-radius: 6px; cursor: pointer; }
+  #choice-box label:has(input:checked) { border-color: var(--primary); background: var(--primary-tint); }
+  #choice-actions { margin: 0 0 12px; }
+  #choice-result { font-weight: 600; margin: 0 0 12px; }
+  #choice-result:empty { display: none; }
+  #choice-result.right { color: var(--ok); }
+  #choice-result.wrong { color: var(--error); }
+
+  .workspace[hidden] { display: none; }
+  #locked { flex: 1; display: grid; place-items: center; padding: 32px 20px; text-align: center; }
+  #locked[hidden] { display: none; }
+  .locked-card { max-width: 480px; padding: 28px 24px; border: 2px solid var(--error); border-radius: 10px; background: #fff; }
+  .locked-card .lock { width: 40px; height: 40px; fill: none; stroke: var(--error); stroke-width: 2; stroke-linecap: round; }
+  .locked-card h2 { margin: 6px 0 8px; color: var(--error); font-size: 1.3rem; }
+  .locked-card p { color: var(--muted); margin: 0 0 18px; }
+  .locked-card .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  @media (max-width: 640px) {
+    .pager .btn { padding: 8px 14px; }
+    .pager { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <h1>Try the Exercises</h1>
+    <div class="topbar-actions">
+      <select id="session-pick" aria-label="Choose a session"></select>
+      <a href="index.html#syllabus">Back to the course</a>
+      <a class="btn" href="index.html#register">Register free</a>
+    </div>
+  </div>
+</header>
+
+<div id="quiz">
+  <div class="progress">
+    <div class="wrap">
+      <span id="position"></span>
+      <ol class="steps" id="steps" aria-label="Questions in this session"></ol>
+    </div>
+  </div>
+  <main class="workspace" id="workspace">
+    <div class="panel" id="question-panel">
+      <p class="topic" id="topic"></p>
+      <h2 id="title" tabindex="-1"></h2>
+      <p id="task"></p>
+      <div id="code-details">
+        <p id="test-count"></p>
+        <div id="example-given-box">
+          <p class="label">Example: given</p>
+          <pre class="expected" id="example-given"></pre>
+        </div>
+        <p class="label">Expected output</p>
+        <pre class="expected" id="expected"></pre>
+      </div>
+      <fieldset id="choice-box" hidden>
+        <legend>Choose the answer that fills the blank</legend>
+        <div id="choices"></div>
+      </fieldset>
+      <div id="choice-actions" hidden><button class="btn" id="check-choice" type="button">Check answer</button></div>
+      <p id="choice-result" role="status"></p>
+      <details id="hint-box"><summary>Show a hint</summary><p id="hint"></p></details>
+    </div>
+    <div class="divider" id="divider" role="separator" tabindex="0" aria-label="Resize the exercise and code panels" aria-valuemin="25" aria-valuemax="75" aria-valuenow="50" title="Drag to resize. Double-click to reset."></div>
+    <div class="lab">
+      <textarea id="code" wrap="off" aria-label="Python code editor" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <div class="lab-bar">
+        <button class="btn" id="run" type="button">▶ Run and check</button>
+        <span id="lab-note">The first run takes a moment.</span>
+        <span id="verdict" role="status"></span>
+      </div>
+      <div class="terminal-title">Terminal</div>
+      <pre id="output" aria-live="polite" tabindex="0">Your output will appear here.</pre>
+    </div>
+  </main>
+
+  <div id="locked" hidden>
+    <div class="locked-card">
+      <svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      <h2 id="locked-title" tabindex="-1">This question is locked</h2>
+      <p id="locked-text"></p>
+      <div class="actions">
+        <a class="btn" href="index.html#register">Register for the free demo</a>
+        <button class="btn secondary" id="back-to-free" type="button">Back to the free questions</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap pager">
+    <span class="free-note" id="free-note"></span>
+    <button class="btn secondary" id="next" type="button">Next</button>
+  </div>
+</div>
+
+<script src="vendor/codemirror/codemirror.min.js"></script>
+<script src="vendor/codemirror/python.min.js"></script>
+<script src="code-editor.js"></script>
+<script src="python-runner.js"></script>
+<script src="split-pane.js"></script>
+<script>
+const element = (id) => document.getElementById(id);
+const editor = createCodeEditor(element("code"));
+const runner = createPythonRunner();
+const drafts = {};
+const solved = new Set();
+let sessions = {};
+let session = null;     // { topic, total, questions }
+let position = 0;       // 0-based; positions past the free questions are locked
+
+function isLocked(index) {
+  return index >= session.questions.length;
+}
+
+function renderSteps() {
+  element("position").textContent = `Question ${position + 1} of ${session.total}`;
+  element("steps").replaceChildren(...Array.from({ length: session.total }, (_, index) => {
+    const item = document.createElement("li");
+    const locked = isLocked(index);
+    const question = session.questions[index];
+    const step = Object.assign(document.createElement("button"), {
+      type: "button", textContent: index + 1,
+      className: locked ? "locked" : solved.has(question.id) ? "solved" : "",
+    });
+    step.setAttribute("aria-label", `Question ${index + 1}${locked ? ", locked" : ""}`);
+    if (index === position) step.setAttribute("aria-current", "step");
+    step.addEventListener("click", () => open(index));
+    item.append(step);
+    return item;
+  }));
+  element("steps").children[position].scrollIntoView({ block: "nearest", inline: "center" });
+  element("next").hidden = position >= session.total - 1;
+}
+
+function saveDraft() {
+  const question = session && session.questions[position];
+  if (!question) return;
+  drafts[question.id] = question.options ? document.querySelector("#choices input:checked")?.value ?? null : editor.getValue();
+}
+
+function open(index) {
+  saveDraft();
+  position = index;
+  renderSteps();
+  const locked = isLocked(index);
+  element("workspace").hidden = locked;
+  element("locked").hidden = !locked;
+  if (locked) {
+    element("locked-text").textContent = `This sample shows ${session.questions.length} of the ${session.total} practice questions for ${session.topic}. Join the course to unlock all of them, with every session's questions checked as you go.`;
+    element("locked-title").focus({ preventScroll: true });
+    return;
+  }
+  const question = session.questions[index];
+  const isChoice = Boolean(question.options);
+  element("topic").textContent = session.topic;
+  element("title").textContent = question.title;
+  element("task").textContent = question.task;
+  element("workspace").classList.toggle("choice-only", isChoice);
+  element("code-details").hidden = isChoice;
+  element("choice-box").hidden = !isChoice;
+  element("choice-actions").hidden = !isChoice;
+  if (isChoice) {
+    element("choices").replaceChildren(...question.options.map((option) => {
+      const label = document.createElement("label");
+      const input = Object.assign(document.createElement("input"), { type: "radio", name: "choice", value: option, checked: option === drafts[question.id] });
+      label.append(input, document.createTextNode(option));
+      return label;
+    }));
+  } else {
+    const example = question.tests[0];
+    const given = describeTestCase(example);
+    element("test-count").textContent = "Your code must print this exact output.";
+    element("example-given-box").hidden = !given;
+    element("example-given").textContent = given;
+    element("expected").textContent = example.expected;
+    editor.setValue(drafts[question.id] ?? question.starter);
+    element("output").textContent = "Your output will appear here.";
+    element("output").classList.remove("failed");
+  }
+  element("hint").textContent = question.hint;
+  element("hint-box").open = false;
+  for (const id of ["verdict", "choice-result"]) {
+    element(id).textContent = "";
+    element(id).className = "";
+  }
+  element("question-panel").scrollTop = 0;
+  element("title").focus({ preventScroll: true });
+}
+
+element("check-choice").addEventListener("click", () => {
+  const question = session.questions[position];
+  const choice = document.querySelector("#choices input:checked")?.value;
+  const result = element("choice-result");
+  if (!choice) {
+    result.className = "wrong";
+    result.textContent = "Choose an answer first.";
+    return;
+  }
+  const right = choice === question.answer;
+  result.className = right ? "right" : "wrong";
+  result.textContent = right ? "✓ Correct!" : "Not quite. Try again, or open the hint.";
+  if (right) solved.add(question.id);
+  renderSteps();
+});
+
+element("run").addEventListener("click", async () => {
+  const question = session.questions[position];
+  const output = element("output");
+  element("run").disabled = true;
+  output.classList.remove("failed");
+  output.textContent = "Loading Python...";
+  element("lab-note").textContent = "Please wait...";
+  const result = await runTests(runner, question, editor.getValue(), () => { element("lab-note").textContent = "Running..."; });
+  output.classList.toggle("failed", result.status !== "ok");
+  output.textContent = result.display;
+  element("lab-note").textContent = "";
+  const verdict = element("verdict");
+  verdict.className = result.isRight ? "right" : "wrong";
+  verdict.textContent = result.isRight ? "✓ Correct! Your code passed." : result.status === "ok"
+    ? "Not yet. See the terminal for what's different." : "Your code stopped with a problem. Read the message below.";
+  if (result.isRight) solved.add(question.id);
+  renderSteps();
+  element("run").disabled = false;
+});
+
+element("next").addEventListener("click", () => open(position + 1));
+element("back-to-free").addEventListener("click", () => open(0));
+element("session-pick").addEventListener("change", (event) => choose(event.target.value));
+initSplitPane(element("workspace"), element("divider"));
+
+function choose(number) {
+  saveDraft();
+  session = sessions[number] || sessions[Object.keys(sessions)[0]];
+  element("session-pick").value = number;
+  element("free-note").textContent = `${session.questions.length} free questions to try. ${session.total - session.questions.length} more unlock when you join.`;
+  history.replaceState(null, "", `?session=${number}`);
+  open(0);
+}
+
+fetch("exercise-preview.json")
+  .then((response) => response.json())
+  .then((data) => {
+    sessions = data.sessions;
+    element("session-pick").replaceChildren(...Object.entries(sessions).map(([number, value]) =>
+      Object.assign(document.createElement("option"), { value: number, textContent: value.topic })));
+    const wanted = new URLSearchParams(location.search).get("session");
+    choose(sessions[wanted] ? wanted : Object.keys(sessions)[0]);
+  })
+  .catch(() => {
+    element("position").textContent = "We couldn't load the exercises. Please reload this page.";
+  });
+</script>
+</body>
+</html>
