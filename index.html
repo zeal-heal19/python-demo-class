@@ -46,7 +46,6 @@
   .topbar nav { display: flex; gap: 22px; }
   .topbar nav a { color: var(--muted); font-size: .93rem; font-weight: 500; text-decoration: none; }
   .topbar nav a:hover { color: var(--ink); }
-  .topbar nav a.demo-tab { color: var(--primary); font-weight: 600; }
   .topbar .btn { padding: 8px 14px; font-size: .9rem; white-space: nowrap; }
 
   /* Hero */
@@ -145,7 +144,7 @@
   .mobile-bar { display: none; }
 
   @media (max-width: 900px) {
-    .topbar nav a:not(.demo-tab) { display: none; }
+    .topbar nav a { display: none; }
     .hero { padding: 28px 0; }
     .hero-text { max-width: none; }
     .topbar .btn:not(.secondary) { display: none; }
@@ -179,7 +178,6 @@
     <nav aria-label="Page sections">
       <a href="#syllabus">Syllabus</a>
       <a href="#included">What's included</a>
-      <a class="demo-tab" href="demo-lab.html" target="_blank" rel="noopener">Demo Practice Lab</a>
     </nav>
     <a class="btn secondary" href="student-login.html">Student login</a>
     <a class="btn" href="#register">Register free</a>
@@ -302,7 +300,7 @@ for number, skill in enumerate(skills, start=1):
         <pre id="output" aria-live="polite" tabindex="0">Your output will appear here.</pre>
       </div>
       <p class="lab-more">Want a bigger workspace? <a href="https://jupyterlite.github.io/demo/lab/index.html" target="_blank" rel="noopener">Open the full JupyterLite lab</a> (free and open source, opens in a new tab).</p>
-      <p class="lab-more"><a class="btn" href="demo-lab.html" target="_blank" rel="noopener">Try 5 practice questions</a></p>
+      <p class="lab-more"><a class="btn" href="exercise-preview.html">Try sample exercises</a></p>
     </div>
   </section>
 </main>
