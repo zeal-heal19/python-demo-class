@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WeekendClasses | Free Python Demo Class</title>
-<meta name="description" content="One-month weekend Python course for freshers and career changers, with course recordings and a practice lab. Attend a free demo class first. Course fee ₹2,499.">
+<meta name="description" content="One-month weekend Python course for freshers and career changers, with course recordings and a practice lab. Attend a free demo class first. Launch offer: ₹2,499 for the first batch.">
 <meta property="og:title" content="WeekendClasses: join the free Python demo class">
-<meta property="og:description" content="One month of weekend classes, course recordings and a practice lab. Attend the free demo first. Course fee ₹2,499.">
+<meta property="og:description" content="One month of weekend classes, course recordings and a practice lab. Attend the free demo first. Launch offer: ₹2,499 for the first batch.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
@@ -100,6 +100,17 @@
   .status.error { color: var(--error); }
   .fee-line { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: .86rem; color: var(--muted); }
   .fee-line b { color: var(--ink); }
+
+  /* Launch offer */
+  .offer-tag { display: inline-block; background: var(--cta); color: var(--on-cta); font-size: .72rem; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; vertical-align: middle; }
+  .meta .offer { display: flex; align-items: center; gap: 8px; }
+  .meta .offer b { font-size: 1.15rem; }
+  .offer-box { margin: 0 0 18px; padding: 14px 16px; background: #fff8e6; border: 2px dashed var(--cta); border-radius: 8px; }
+  .offer-price { margin: 8px 0 0; display: flex; align-items: baseline; gap: 8px; }
+  .offer-price b { font-size: 2rem; line-height: 1; color: var(--ink); }
+  .offer-price span { color: var(--muted); font-size: .9rem; }
+  .offer-note { margin: 6px 0 0; color: var(--muted); font-size: .82rem; }
   .done { text-align: center; padding: 28px 4px; outline: none; }
   .done h2 { color: var(--ok); }
   .trap { position: absolute; left: -9999px; }
@@ -183,7 +194,7 @@
         <li><b>9</b> live sessions, <b>17</b> hours</li>
         <li>Course recordings</li>
         <li>Practice lab</li>
-        <li>Course fee <b>₹2,499</b></li>
+        <li class="offer"><span class="offer-tag">Launch offer</span> <b>₹2,499</b> for the first batch</li>
       </ul>
     </div>
   </div>
@@ -222,6 +233,11 @@
 
     <aside class="form-card" id="register" aria-label="Register for the free demo class">
       <div id="form-area">
+        <div class="offer-box">
+          <span class="offer-tag">Launch offer</span>
+          <p class="offer-price"><b>₹2,499</b> <span>full course</span></p>
+          <p class="offer-note">First batch only. The fee will be higher for later batches.</p>
+        </div>
         <h2>Register for the free demo</h2>
         <p class="form-intro">We'll contact you with the demo date and joining link.</p>
         <form id="reg-form" novalidate>
@@ -251,7 +267,7 @@
           <p class="status error" id="status" role="alert" hidden></p>
           <p class="fine">By registering, you agree that we can contact you by phone or email about the demo and course. Tell us any time if you'd like your details removed.</p>
         </form>
-        <p class="fee-line">The demo is free. Full course fee: <b>₹2,499</b>, only if you choose to join.</p>
+        <p class="fee-line">The demo is free. Pay the launch fee of <b>₹2,499</b> only if you choose to join.</p>
       </div>
     </aside>
   </div>
