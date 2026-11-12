@@ -146,7 +146,9 @@ async function runTests(runner, question, code, onStarted) {
   const firstProblem = results.findIndex((result) => !result.isRight);
   const passed = results.filter((result) => result.isRight).length;
   if (firstProblem === -1) {
-    return { status: "ok", isRight: true, passed, total, display: lines.join("\n") };
+    // Show what the program printed too, not only the pass lines, so learners see their output.
+    const label = total === 1 ? "Your output:" : "Your output (test 1):";
+    return { status: "ok", isRight: true, passed, total, display: `${label}\n${results[0].display}\n\n${lines.join("\n")}` };
   }
 
   const problem = results[firstProblem];
